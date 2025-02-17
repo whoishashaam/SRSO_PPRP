@@ -1,0 +1,220 @@
+﻿@model List<SRSO_PPRP.Models.HouseholdDataModel>
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .table-container {
+        margin-left: 50px; /* Adjust based on sidebar width */
+        padding: 20px;
+        overflow-x: hidden;
+    }
+
+    .pagination .page-link {
+        color: black !important; /* Fixes white number issue */
+    }
+
+    .pagination .active .page-link {
+        background-color: #007bff !important;
+        border-color: #007bff !important;
+        color: white !important;
+    }
+</style>
+
+<div class="content">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between">
+                    <h4 class="card-title">Household Data</h4>
+                    <div>
+                        <button id="exportCSV" class="btn btn-primary btn-sm">Download CSV</button>
+                        
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <div class="d-flex justify-content-between mb-2">
+                            <label>
+                                Show
+                                <select id="entriesPerPage" class="form-control-sm">
+                                    <option value="25" selected>25</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select> entries
+                            </label>
+                            <input type="text" id="searchTable" class="form-control-sm" placeholder="Search...">
+                        </div>
+                        <table class="table table-striped table-bordered" id="householdTable">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>CNIC</th>
+                                    <th>Contact No</th>
+                                    <th>Gender</th>
+                                    <th>Marital Status</th>
+                                    <th>Relation</th>
+                                    <th>Head</th>
+                                    <th>Age (Years)</th>
+                                    <th>Education</th>
+                                    <th>Occupation</th>
+                                    <th>Address</th>
+                                    <th>Religion</th>
+                                    <th>Status</th>
+                                    <th>Upload Status</th>
+                                    <th>Enumerator Name</th>
+                                    <th>Enumerator ID</th>
+                                    <th>Created Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var household in Model)
+                                {
+                                    <tr>
+                                        <td>@household.ID</td>
+                                        <td>@household.Name</td>
+                                        <td>@household.CNIC</td>
+                                        <td>@household.ContactNo</td>
+                                        <td>@household.Gender</td>
+                                        <td>@household.MaritalStatus</td>
+                                        <td>@household.Relation</td>
+                                        <td>@household.Head</td>
+                                        <td>@household.AgeYears</td>
+                                        <td>@household.Education</td>
+                                        <td>@household.Occupation</td>
+                                        <td>@household.Address</td>
+                                        <td>@household.Religion</td>
+                                        <td>@household.Status</td>
+                                        <td>@household.UploadStatus</td>
+                                        <td>@household.EnumeratorName</td>
+                                        <td>@household.EnumeratorID</td>
+                                        <td>@(household.CreatedDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        <div class="d-flex justify-content-between">
+                            <span id="tableInfo"></span>
+                            <ul class="pagination"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        let table = $("#householdTable");
+        let rows = table.find("tbody tr");
+        let perPage = parseInt($("#entriesPerPage").val());
+        let currentPage = 1;
+
+        function updateTable() {
+            let value = $("#searchTable").val().toLowerCase();
+            let filteredRows = rows.filter(function () {
+                return $(this).text().toLowerCase().includes(value);
+            });
+
+            let start = (currentPage - 1) * perPage;
+            let end = start + perPage;
+
+            rows.hide();
+            filteredRows.slice(start, end).show();
+
+            $("#tableInfo").text(`Showing ${start + 1} to ${Math.min(end, filteredRows.length)} of ${filteredRows.length} entries`);
+
+            let totalPages = Math.ceil(filteredRows.length / perPage);
+            let pagination = $(".pagination").empty();
+            for (let i = 1; i <= totalPages; i++) {
+                let pageItem = $("<li class='page-item'><a class='page-link'>" + i + "</a></li>");
+                if (i === currentPage) pageItem.addClass("active");
+                pageItem.click(() => { currentPage = i; updateTable(); });
+                pagination.append(pageItem);
+            }
+        }
+
+        $("#entriesPerPage").change(function () {
+            perPage = parseInt($(this).val());
+            currentPage = 1;
+            updateTable();
+        });
+
+        $("#searchTable").on("keyup", function () {
+            updateTable();
+        });
+
+        updateTable();
+
+        // ** Export CSV including all headers **
+        $("#exportCSV").click(function () {
+            let csvContent = "data:text/csv;charset=utf-8,";
+
+            // ** Extract all column headers, including hidden ones **
+            let headers = [];
+            $("#householdTable thead th").each(function () {
+                headers.push($(this).text().trim());
+            });
+
+            csvContent += headers.join(",") + "\n";
+
+            // ** Extract all rows (including hidden ones) **
+            $("#householdTable tbody tr").each(function () {
+                let row = [];
+                $(this).find("td").each(function () {
+                    row.push($(this).text().trim());
+                });
+                csvContent += row.join(",") + "\n";
+            });
+
+            let encodedUri = encodeURI(csvContent);
+            let link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "Household_Data.csv");
+            document.body.appendChild(link);
+            link.click();
+        });
+
+        // ** Export PDF including all headers **
+        $("#exportPDF").click(function () {
+            const { jsPDF } = window.jspdf;
+            let doc = new jsPDF();
+            doc.text("Household Data", 14, 10);
+
+            let headers = [];
+            let data = [];
+
+            // ** Extract column headers from the table (including hidden ones) **
+            $("#householdTable thead th").each(function () {
+                headers.push($(this).text().trim());
+            });
+
+            // ** Extract row data (including hidden rows) **
+            $("#householdTable tbody tr").each(function () {
+                let row = [];
+                $(this).find("td").each(function () {
+                    row.push($(this).text().trim());
+                });
+                data.push(row);
+            });
+
+            doc.autoTable({
+                head: [headers],  // Ensure all headers are included
+                body: data,
+                startY: 20,
+                styles: { fontSize: 8 }
+            });
+
+            doc.save("Household_Data.pdf");
+        });
+
+    });
+</script>

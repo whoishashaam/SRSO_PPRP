@@ -1,0 +1,179 @@
+﻿@model List<SRSO_PPRP.Models.UserModel>
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .table-container {
+        margin-left: 250px; /* Adjust based on sidebar width */
+        padding: 20px;
+        overflow-x: auto;
+    }
+
+    .pagination .page-link {
+        color: black !important; /* Fixes white number issue */
+    }
+
+    .pagination .active .page-link {
+        background-color: #007bff !important;
+        border-color: #007bff !important;
+        color: white !important;
+    }
+</style>
+
+<div class="content">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between">
+                    <h4 class="card-title">User List</h4>
+                    <div>
+                        <button id="exportCSV" class="btn btn-primary btn-sm">Download CSV</button>
+                        <button id="exportPDF" class="btn btn-danger btn-sm">Download PDF</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <div class="d-flex justify-content-between mb-2">
+                            <label>
+                                Show
+                                <select id="entriesPerPage" class="form-control-sm">
+                                    <option value="10" selected>10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select> entries
+                            </label>
+                            <input type="text" id="searchTable" class="form-control-sm" placeholder="Search...">
+                        </div>
+                        <table class="table tablesorter" id="userTable">
+                            <thead class="text-primary">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Password</th>
+                                    <th>Username</th>
+                                    <th>User ID</th>
+                                    <th>District ID</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var user in Model)
+                                {
+                                    <tr>
+                                        <td>@user.ID</td>
+                                        <td>@user.Password</td>
+                                        <td>@user.UserName</td>
+                                        <td>@user.UserID</td>
+                                        <td>@user.DistrictID</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        <div class="d-flex justify-content-between">
+                            <span id="tableInfo"></span>
+                            <ul class="pagination"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include the Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+
+<script>
+        $(document).ready(function () {
+        let table = $("#userTable");
+        let rows = table.find("tbody tr");
+        let perPage = parseInt($("#entriesPerPage").val());
+        let currentPage = 1;
+
+        function updateTable() {
+            let value = $("#searchTable").val().toLowerCase();
+            let filteredRows = rows.filter(function () {
+                return $(this).text().toLowerCase().includes(value);
+            });
+
+            let start = (currentPage - 1) * perPage;
+            let end = start + perPage;
+
+            rows.hide();
+            filteredRows.slice(start, end).show();
+
+            $("#tableInfo").text(`Showing ${start + 1} to ${Math.min(end, filteredRows.length)} of ${filteredRows.length} entries`);
+
+            let totalPages = Math.ceil(filteredRows.length / perPage);
+            let pagination = $(".pagination").empty();
+            for (let i = 1; i <= totalPages; i++) {
+                let pageItem = $("<li class='page-item'><a class='page-link'>" + i + "</a></li>");
+                if (i === currentPage) pageItem.addClass("active");
+                pageItem.click(() => { currentPage = i; updateTable(); });
+                pagination.append(pageItem);
+            }
+        }
+
+        $("#entriesPerPage").change(function () {
+            perPage = parseInt($(this).val());
+            currentPage = 1;
+            updateTable();
+        });
+
+        $("#searchTable").on("keyup", function () {
+            updateTable();
+        });
+
+        updateTable();
+
+        // Export ALL rows for CSV
+        $("#exportCSV").click(function () {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "ID,Password,Username,User ID,District ID\n";
+
+            $("#userTable tbody tr").each(function () {  // Get all rows, not just visible
+                let row = [];
+                $(this).find("td").each(function () {
+                    row.push($(this).text());
+                });
+                csvContent += row.join(",") + "\n";
+            });
+
+            let encodedUri = encodeURI(csvContent);
+            let link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "PHSIP_Assessments.csv");
+            document.body.appendChild(link);
+            link.click();
+        });
+
+        // Export ALL rows for PDF
+        $("#exportPDF").click(function () {
+            const { jsPDF } = window.jspdf;
+            let doc = new jsPDF();
+            doc.text("PHSIP Assessments", 14, 10);
+
+            let data = [];
+            $("#userTable tbody tr").each(function () {  // Get all rows, not just visible
+                let row = [];
+                $(this).find("td").each(function () {
+                    row.push($(this).text());
+                });
+                data.push(row);
+            });
+
+            doc.autoTable({
+                head: [['ID', 'Password', 'Username', 'User ID', 'District ID']],
+                body: data,
+                startY: 20,
+                styles: { fontSize: 8 }
+            });
+
+            doc.save("PHSIP_Assessments.pdf");
+        });
+    });
+
+</script>

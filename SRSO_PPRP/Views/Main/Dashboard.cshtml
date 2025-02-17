@@ -1,0 +1,190 @@
+﻿@model SRSO_PPRP.Models.UserModel
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Create User";
+}
+
+<style>
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    .container {
+        flex: 1;
+    }   
+
+    
+
+    .card {
+        background: #1e1e2f;
+        color: #fff;
+        border-radius: 10px;
+    }
+
+    .form-control {
+        background: #2a2a3a;
+        color: white;
+        border: 1px solid #444;
+    }
+
+    .btn-primary {
+        background: linear-gradient(90deg, #a855f7, #ec4899);
+        border: none;
+    }
+
+        .btn-primary:hover {
+            background: linear-gradient(90deg, #9333ea, #db2777);
+        }
+
+    /* Enhancing the hr separator */
+    hr {
+        border: 2px solid #6c757d; /* Darker separator */
+        margin: 20px 0;
+        opacity: 1;
+    }
+
+    /* Clickable label styling */
+    .upload-label {
+        display: block;
+        font-weight: bold;
+        cursor: pointer;
+        color: #007bff; /* Bootstrap primary color */
+        transition: color 0.3s ease-in-out;
+    }
+
+        .upload-label:hover {
+            color: #0056b3; /* Darker shade on hover */
+        }
+
+    /* Helper text */
+    .form-text {
+        font-size: 14px;
+        color: #6c757d; /* Bootstrap secondary text */
+    }
+
+    /* Loading bar container */
+    .progress-container {
+        display: none;
+        margin-top: 10px;
+    }
+
+    /* Progress bar styling */
+    .progress-bar {
+        width: 0%;
+        height: 5px;
+        background: linear-gradient(90deg, #a855f7, #ec4899);
+        transition: width 0.4s ease-in-out;
+    }
+</style>
+
+<div class="container d-flex justify-content-center align-items-center mt-5">
+    <div class="col-md-6">
+        <div class="card shadow-lg p-4">
+            <h3 class="text-center mb-4">Create User</h3>
+
+            @if (TempData["Message"] != null)
+            {
+                <div class="alert alert-success">@TempData["Message"]</div>
+            }
+
+            <form asp-action="UpdateUser" method="post">
+                <div class="mb-3">
+                    <label for="UserID" class="form-label">User ID</label>
+                    <input type="text" class="form-control" id="UserID" name="UserID" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="UserName" class="form-label">User Name</label>
+                    <input type="text" class="form-control" id="UserName" name="UserName" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="Password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="Password" name="Password" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="DistrictID" class="form-label">District</label>
+                    <input type="text" class="form-control" id="DistrictID" name="DistrictID" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">Save Changes</button>
+            </form>
+            <hr />
+
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-6">
+                        <!-- Census File Upload Form -->
+                        <form method="post" enctype="multipart/form-data" asp-controller="Main" asp-action="DataUpload" id="uploadFormCensus">
+                            <div class="form-group">
+                                <label for="fileCensus" class="upload-label">📂 Upload Census File</label>
+                                <small class="form-text">Accepted formats: <strong>.xlsx, .csv</strong></small>
+                                <input type="file" name="file" id="fileCensus" class="form-control" accept=".csv, .xlsx" required />
+                            </div>
+                            <div class="progress-container" style="display: none;">
+                                <div class="progress-bar" id="progressBarCensus"></div>
+                            </div>
+                            <button type="submit" class="btn btn-primary mt-2" id="uploadBtnCensus" disabled>Upload</button>
+                        </form>
+                    </div>
+
+                    <div class="col-md-6">
+                        <!-- User File Upload Form -->
+                        <form method="post" enctype="multipart/form-data" asp-controller="Main" asp-action="UserDataUpload" id="uploadFormUser">
+                            <div class="form-group">
+                                <label for="fileUser" class="upload-label">📂 Upload User File</label>
+                                <small class="form-text">Accepted formats: <strong>.xlsx</strong></small>
+                                <input type="file" name="file" id="fileUser" class="form-control" accept=".xlsx" required />
+                            </div>
+                            <div class="progress-container" style="display: none;">
+                                <div class="progress-bar" id="progressBarUser"></div>
+                            </div>
+                            <button type="submit" class="btn btn-primary mt-2" id="uploadBtnUser" disabled>Upload</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                document.addEventListener("DOMContentLoaded", function () {
+                    document.querySelectorAll("input[type='file']").forEach(input => {
+                        input.addEventListener("change", function () {
+                            let formId = this.id.includes("Census") ? "Census" : "User";
+                            document.getElementById("uploadBtn" + formId).disabled = false; // Enable button when file selected
+                        });
+                    });
+
+                    document.querySelectorAll("form").forEach(form => {
+                        form.addEventListener("submit", function (e) {
+                            e.preventDefault(); // Prevent immediate submission
+
+                            let formId = this.id.includes("Census") ? "Census" : "User";
+                            let progressBar = document.getElementById("progressBar" + formId);
+                            let progressContainer = progressBar.parentElement;
+                            let uploadBtn = document.getElementById("uploadBtn" + formId);
+
+                            uploadBtn.disabled = true;
+                            progressContainer.style.display = "block";
+                            progressBar.style.width = "0%";
+
+                            let fakeProgress = 0;
+                            let interval = setInterval(() => {
+                                fakeProgress += 10;
+                                progressBar.style.width = fakeProgress + "%";
+
+                                if (fakeProgress >= 100) {
+                                    clearInterval(interval);
+                                    setTimeout(() => {
+                                        form.submit(); // Submit form after progress bar completes
+                                    }, 500);
+                                }
+                            }, 200);
+                        });
+                    });
+                });
+            </script>
+

@@ -1,0 +1,264 @@
+﻿@model List<SRSO_PPRP.Models.PSCServeyScore>
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+
+    .card {
+
+        margin-left:100px;
+    }
+    .card-body {
+        overflow-x: auto; /* Enables horizontal scrolling */
+        padding: 15px;
+    }
+
+    .table-responsive {
+        max-width: calc(100vw - 250px); /* Adjusts width considering the sidebar */
+        overflow-x: hidden;
+        white-space: nowrap;
+    }
+
+    @@media (max-width: 992px) {
+        .table-responsive
+
+    {
+        max-width: 100%;
+    }
+
+    }
+</style>
+
+
+<h2>PSC Survey Score Data</h2>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between">
+        <h4 class="card-title">PSC Survey Score</h4>
+        <div>
+            <label>
+                Show
+                <select id="entriesPerPage" class="form-control-sm">
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select> entries
+            </label>
+            <div id="pagination" class="pagination-container"></div>
+            <button id="exportCSV" class="btn btn-primary btn-sm">Download CSV</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered" id="surveyTable">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>UUID</th>
+                        <th>District</th>
+                        <th>Tehsil</th>
+                        <th>UC</th>
+                        <th>HH Member ID</th>
+                        <th>RV Village ID</th>
+                        <th>Household Members Score</th>
+                        <th>Room Score</th>
+                        <th>Toilet Score</th>
+                        <th>TV Score</th>
+                        <th>Refrigerator Score</th>
+                        <th>AC Score</th>
+                        <th>Cooking Score</th>
+                        <th>Engine Driven Score</th>
+                        <th>Livestock Score</th>
+                        <th>Land Score</th>
+                        <th>Head Education Score</th>
+                        <th>Total PSC Score</th>
+                        <th>Created Date</th>
+                        <th>Cell Phone</th>
+                        <th>Electricity</th>
+                        <th>Drinking Water Source</th>
+                        <th>Latitude</th>
+                        <th>Longitude</th>
+                        <th>Location Address</th>
+                        <th>Buffalo</th>
+                        <th>Cow</th>
+                        <th>Goat</th>
+                        <th>Sheep</th>
+                        <th>Camel</th>
+                        <th>Donkey</th>
+                        <th>Mule/Horse</th>
+                        <th>Village ID</th>
+                        <th>School Going Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.ID</td>
+                            <td>@item.UUID</td>
+                            <td>@item.DISTRICT_ID</td>
+                            <td>@item.TEHSIL_ID</td>
+                            <td>@item.UC_ID</td>
+                            <td>@item.HH_MEM_ID</td>
+                            <td>@item.RV_VILLAGE_ID</td>
+                            <td>@item.HOUSEHOLD_MEMBERS_COUNT_SCORE</td>
+                            <td>@item.ROOM_SCORE</td>
+                            <td>@item.TOILET_SCORE</td>
+                            <td>@item.TV_SCORE</td>
+                            <td>@item.REFRIGERATOR_SCORE</td>
+                            <td>@item.AIRCONDITIONER_SCORE</td>
+                            <td>@item.COOKING_SCORE</td>
+                            <td>@item.ENGINE_DRIVEN_SCORE</td>
+                            <td>@item.LIVESTOCK_SCORE</td>
+                            <td>@item.LAND_SCORE</td>
+                            <td>@item.HEAD_EDUCATION_SCORE</td>
+                            <td>@item.TOTAL_PSC_SCORE</td>
+                            <td>@(item.CREATED_DATE.ToString("yyyy-MM-dd") ?? "N/A")</td>
+                            <td>@item.CELL_PHONE</td>
+                            <td>@item.ELECTRICITY</td>
+                            <td>@item.SOURCE_OF_DRINKING_WATER</td>
+                            <td>@item.LATITUDE</td>
+                            <td>@item.LONGITUDE</td>
+                            <td>@item.LOCATION_ADDRESS</td>
+                            <td>@item.BUFFALO</td>
+                            <td>@item.COW</td>
+                            <td>@item.GOAT</td>
+                            <td>@item.SHEEP</td>
+                            <td>@item.CAMEL</td>
+                            <td>@item.DONKEY</td>
+                            <td>@item.MULE_HORSE</td>
+                            <td>@item.VILLAGE_ID</td>
+                            <td>@item.SCHOOL_GOING_SCORE</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Include SheetJS library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        let table = $("#surveyTable");
+        let rows = table.find("tbody tr");
+        let entriesPerPage = parseInt($("#entriesPerPage").val());
+        let currentPage = 1;
+        let totalPages = Math.ceil(rows.length / entriesPerPage);
+        let maxVisiblePages = 7;
+
+        function showEntries() {
+            entriesPerPage = parseInt($("#entriesPerPage").val());
+            totalPages = Math.ceil(rows.length / entriesPerPage);
+            currentPage = 1;
+            paginate();
+        }
+
+        function paginate() {
+            rows.hide();
+            let start = (currentPage - 1) * entriesPerPage;
+            let end = start + entriesPerPage;
+            rows.slice(start, end).show();
+            updatePagination();
+        }
+
+        function updatePagination() {
+            let paginationContainer = $("#pagination");
+            paginationContainer.html("");
+
+            if (totalPages > 1) {
+                let paginationHTML = `<button class="btn btn-sm btn-light" id="prevPage" ${currentPage === 1 ? 'disabled' : ''}>« Prev</button> `;
+
+                paginationHTML += `<button class="btn btn-sm ${currentPage === 1 ? 'btn-primary' : 'btn-light'} pagination-btn" data-page="1">1</button> `;
+
+                let startPage = Math.max(2, currentPage - Math.floor(maxVisiblePages / 2));
+                let endPage = Math.min(totalPages - 1, startPage + maxVisiblePages - 1);
+
+                if (startPage > 2) paginationHTML += `<span>...</span> `;
+
+                for (let i = startPage; i <= endPage; i++) {
+                    paginationHTML += `<button class="btn btn-sm ${i === currentPage ? 'btn-primary' : 'btn-light'} pagination-btn" data-page="${i}">${i}</button> `;
+                }
+
+                if (endPage < totalPages - 1) paginationHTML += `<span>...</span> `;
+
+                if (totalPages > 1) {
+                    paginationHTML += `<button class="btn btn-sm ${currentPage === totalPages ? 'btn-primary' : 'btn-light'} pagination-btn" data-page="${totalPages}">${totalPages}</button> `;
+                }
+
+                paginationHTML += `<button class="btn btn-sm btn-light" id="nextPage" ${currentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
+
+                paginationContainer.html(paginationHTML);
+            }
+        }
+
+        $(document).on("click", ".pagination-btn", function () {
+            currentPage = parseInt($(this).data("page"));
+            paginate();
+        });
+
+        $(document).on("click", "#prevPage", function () {
+            if (currentPage > 1) {
+                currentPage--;
+                paginate();
+            }
+        });
+
+        $(document).on("click", "#nextPage", function () {
+            if (currentPage < totalPages) {
+                currentPage++;
+                paginate();
+            }
+        });
+
+        $("#entriesPerPage").change(showEntries);
+        showEntries();
+
+        // Search Functionality
+        $("#searchBtn").click(function () {
+            let searchTerm = $("#searchBox").val().toLowerCase();
+            rows.hide().filter(function () {
+                return $(this).text().toLowerCase().includes(searchTerm);
+            }).show();
+        });
+
+        // Export to Excel Functionality
+        $("#exportCSV").click(function () {
+            // Create a new workbook
+            let workbook = XLSX.utils.book_new();
+
+            // Extract table headers
+            let headers = [];
+            table.find("thead th").each(function () {
+                headers.push($(this).text().trim());
+            });
+
+            // Extract table data
+            let data = [];
+            rows.each(function () {
+                let row = [];
+                $(this).find("td").each(function () {
+                    row.push($(this).text().trim());
+                });
+                data.push(row);
+            });
+
+            // Combine headers and data
+            let worksheetData = [headers, ...data];
+
+            // Create a worksheet
+            let worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+            // Add the worksheet to the workbook
+            XLSX.utils.book_append_sheet(workbook, worksheet, "PSC Survey Data");
+
+            // Generate Excel file and trigger download
+            XLSX.writeFile(workbook, "PSC_Survey_Data.xlsx");
+        });
+    });
+</script>

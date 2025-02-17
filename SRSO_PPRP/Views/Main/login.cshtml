@@ -1,0 +1,86 @@
+﻿@{
+    Layout = null; // No layout to have a full-screen design
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: #1E1E2F;
+            color: #ffffff;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .gradient-text {
+            background: linear-gradient(90deg, #D4145A, #FBB03B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .input-field {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px;
+            border-radius: 8px;
+            color: white;
+            width: 100%;
+            outline: none;
+            transition: 0.3s;
+        }
+
+            .input-field:focus {
+                border-color: #FBB03B;
+            }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #D4145A, #FBB03B);
+            padding: 12px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            width: 100%;
+            transition: 0.3s;
+        }
+
+            .btn-primary:hover {
+                opacity: 0.8;
+            }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen">
+    <div class="w-full max-w-md px-6">
+        <h2 class="text-3xl font-bold text-center gradient-text mb-6">Welcome to PPRP PSC DASHBOARD</h2>
+
+        @if (!string.IsNullOrEmpty(ViewBag.Message))
+        {
+            <div class="text-red-400 text-center mb-4">@ViewBag.Message</div>
+        }
+
+        <form method="post" action="@Url.Action("Login", "Main")">
+            <div class="mb-4">
+                <input type="text" name="username" class="input-field" placeholder="Username" required>
+            </div>
+
+            <div class="mb-4">
+                <input type="password" name="password" class="input-field" placeholder="Password" required>
+            </div>
+
+            <div class="flex items-center justify-between mb-4 text-sm">
+                <label class="flex items-center">
+                    <input type="checkbox" class="mr-2"> Remember Me
+                </label>
+                
+            </div>
+
+            <button type="submit" class="btn-primary">Log In</button>
+
+            
+        </form>
+    </div>
+</body>
+</html>

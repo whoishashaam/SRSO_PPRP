@@ -1,0 +1,90 @@
+﻿@model SRSO_PPRP.Models.UserModel
+
+<div class="main-content">
+    <div class="container mt-4">
+        <div class="card shadow-lg p-4">
+            <h3 class="text-center mb-4">Edit User</h3>
+
+            <form method="post" asp-controller="Main" asp-action="EditUser">
+                <input type="hidden" name="ID" value="@Model.ID" />
+
+                <div class="mb-3">
+                    <label class="form-label">Password:</label>
+                    <input type="text" name="Password" class="form-control" value="@Model.Password" required />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">User Name:</label>
+                    <input type="text" name="UserName" class="form-control" value="@Model.UserName" required />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">User ID:</label>
+                    <input type="text" name="UserID" class="form-control" value="@Model.UserID" required />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">District ID:</label>
+                    <input type="text" name="DistrictID" class="form-control" value="@Model.DistrictID" required />
+                </div>
+
+                <button type="submit" class="btn btn-success w-100">Update</button>
+                <a href="@Url.Action("UsersUpload", "Main")" class="btn btn-secondary w-100 mt-2">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Adjust main content area to prevent overlap with sidebar */
+    .main-content {
+        margin-left: 260px; /* Adjust based on sidebar width */
+        padding: 20px;
+        transition: margin-left 0.3s ease;
+    }
+
+    /* Fix card positioning */
+    .card {
+        background-color: #1e1e2f;
+        color: #fff;
+        border-radius: 12px;
+        padding: 25px;
+        max-width: 600px; /* Prevent stretching */
+        margin: auto; /* Center the card */
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Input Fields */
+    .form-control {
+        background-color: #2a2a3c;
+        border: 1px solid #444;
+        color: #fff;
+        padding: 10px;
+        border-radius: 6px;
+    }
+
+        .form-control:focus {
+            border-color: #a855f7;
+            outline: none;
+            box-shadow: 0 0 5px rgba(168, 85, 247, 0.5);
+        }
+
+    /* Buttons */
+    .btn-success {
+        background: linear-gradient(45deg, #a855f7, #ec4899);
+        color: white;
+    }
+
+        .btn-success:hover {
+            background: linear-gradient(45deg, #9333ea, #db2777);
+        }
+
+    .btn-secondary {
+        background: #444;
+        color: white;
+    }
+
+        .btn-secondary:hover {
+            background: #555;
+        }
+</style>
