@@ -326,11 +326,11 @@ namespace SRSO_PPRP.Controllers
                 string fileExtension = Path.GetExtension(file.FileName).ToLower();
 
                 // Process based on file type
-                if (fileExtension == ".csv")
-                {
-                    UploadCsvToDatabase(filePath);
-                }
-                else if (fileExtension == ".xlsx")
+                //if (fileExtension == ".csv")
+                //{
+                //    UploadCsvToDatabase(filePath);
+                //}
+                if (fileExtension == ".xlsx")
                 {
                     UploadExcelToDatabase(filePath);
                 }
@@ -350,53 +350,10 @@ namespace SRSO_PPRP.Controllers
             return RedirectToAction("Dashboard");
         }
 
-        private void UploadCsvToDatabase(string filePath)
-        {
-
-            
-            string connectionString = _configuration.GetConnectionString("DefaultConnection");
-
-            using (var conn = new OracleConnection(connectionString))
-            {
-                conn.Open();
-
-                // Clear existing data from the table
-                using (var cmd = new OracleCommand("DELETE FROM NRSP.PPRP_SERVAY_CENSUS_DATA", conn))
-                {
-                    cmd.ExecuteNonQuery();
-                }
-
-                using (var reader = new StreamReader(filePath, Encoding.UTF8))
-                {
-                    string line;
-                    bool isHeader = true;
-
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        if (isHeader)
-                        {
-                            isHeader = false;
-                            continue; // Skip header row
-                        }
-
-                        string[] values = line.Split(',');
-
-                        if (values.Length != 11)
-                            continue; // Skip invalid rows
-
-                        InsertDataIntoDatabase(conn, values);
-                    }
-                }
-            }
-
-            // Delete temp file
-            System.IO.File.Delete(filePath);
-        }
+       
 
         private void UploadExcelToDatabase(string filePath)
         {
-
-           
             System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
             using (var stream = System.IO.File.Open(filePath, FileMode.Open, FileAccess.Read))
@@ -416,9 +373,12 @@ namespace SRSO_PPRP.Controllers
                         }
 
                         bool isHeader = true;
+                        int rowNumber = 0; // Track row number for error logging
 
                         while (reader.Read())
                         {
+                            rowNumber++; // Increment row number
+
                             if (isHeader)
                             {
                                 isHeader = false;
@@ -432,7 +392,20 @@ namespace SRSO_PPRP.Controllers
                                 values[i] = reader.GetValue(i)?.ToString() ?? "";
                             }
 
-                            InsertDataIntoDatabase(conn, values);
+                            try
+                            {
+                                InsertDataIntoDatabase(conn, values);
+                            }
+                            catch (OracleException ex)
+                            {
+                                // Log the error with row number and values
+                                Console.WriteLine($"Error inserting row {rowNumber}: {string.Join(", ", values)}. Error: {ex.Message}");
+                            }
+                            catch (Exception ex)
+                            {
+                                // Log any other exceptions
+                                Console.WriteLine($"Unexpected error inserting row {rowNumber}: {string.Join(", ", values)}. Error: {ex.Message}");
+                            }
                         }
                     }
                 }
@@ -444,25 +417,29 @@ namespace SRSO_PPRP.Controllers
 
         private void InsertDataIntoDatabase(OracleConnection conn, string[] values)
         {
-
-            
             using (var cmd = new OracleCommand("INSERT INTO NRSP.PPRP_SERVAY_CENSUS_DATA (DISTRICT_NAME, DISTRICT_ID, TEHSIL_NAME, TEHSIL_ID, UC_NAME, UC_ID, REVEUNE_VILLAGE_NAME, REVEUNEVILLAGE_ID, VILLAGE_NAME, VILLAGENAME_ID, ESTIMATED_HHS) VALUES (:districtName, :districtID, :tehsilName, :tehsilID, :ucName, :ucID, :revVillageName, :revVillageID, :villageName, :villageID, :estimatedHHS)", conn))
             {
-                cmd.Parameters.Add(":districtName", OracleDbType.Varchar2).Value = values[0];
-                cmd.Parameters.Add(":districtID", OracleDbType.Int64).Value = Convert.ToInt64(values[1], CultureInfo.InvariantCulture);
-                cmd.Parameters.Add(":tehsilName", OracleDbType.Varchar2).Value = values[2];
-                cmd.Parameters.Add(":tehsilID", OracleDbType.Int64).Value = Convert.ToInt64(values[3], CultureInfo.InvariantCulture);
-                cmd.Parameters.Add(":ucName", OracleDbType.Varchar2).Value = values[4];
-                cmd.Parameters.Add(":ucID", OracleDbType.Int64).Value = Convert.ToInt64(values[5], CultureInfo.InvariantCulture);
-                cmd.Parameters.Add(":revVillageName", OracleDbType.Varchar2).Value = values[6];
-                cmd.Parameters.Add(":revVillageID", OracleDbType.Int64).Value = Convert.ToInt64(values[7], CultureInfo.InvariantCulture);
-                cmd.Parameters.Add(":villageName", OracleDbType.Varchar2).Value = values[8];
-                cmd.Parameters.Add(":villageID", OracleDbType.Int64).Value = Convert.ToInt64(values[9], CultureInfo.InvariantCulture);
-                cmd.Parameters.Add(":estimatedHHS", OracleDbType.Int64).Value = Convert.ToInt64(values[10], CultureInfo.InvariantCulture);
+                // Trim and handle null/empty values
+                cmd.Parameters.Add(":districtName", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[0]) ? DBNull.Value : (object)values[0].Trim();
+                cmd.Parameters.Add(":districtID", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[1]) ? DBNull.Value : (object)values[1].Trim();
+                cmd.Parameters.Add(":tehsilName", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[2]) ? DBNull.Value : (object)values[2].Trim();
+                cmd.Parameters.Add(":tehsilID", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[3]) ? DBNull.Value : (object)values[3].Trim();
+                cmd.Parameters.Add(":ucName", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[4]) ? DBNull.Value : (object)values[4].Trim();
+                cmd.Parameters.Add(":ucID", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[5]) ? DBNull.Value : (object)values[5].Trim();
+                cmd.Parameters.Add(":revVillageName", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[6]) ? DBNull.Value : (object)values[6].Trim();
+                cmd.Parameters.Add(":revVillageID", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[7]) ? DBNull.Value : (object)values[7].Trim();
+                cmd.Parameters.Add(":villageName", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[8]) ? DBNull.Value : (object)values[8].Trim();
+
+                // Ensure VILLAGENAME_ID is not null (replace null/empty with a default value, e.g., "0")
+                cmd.Parameters.Add(":villageID", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[9]) ? "0" : values[9].Trim();
+
+                // Ensure ESTIMATED_HHS is not null (replace null/empty with a default value, e.g., "0")
+                cmd.Parameters.Add(":estimatedHHS", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[10]) ? "0" : values[10].Trim();
 
                 cmd.ExecuteNonQuery();
             }
         }
+
 
 
         [HttpPost]
@@ -615,9 +592,30 @@ END;", conn))
 
 
 
-        public List<HouseholdDataModel> GetHouseholdData()
+        public IActionResult HouseholdData()
         {
+            List<HouseholdDataModel> householdList = GetHouseholdData(); // Fetch all household data
 
+            // Prepare the CSV content
+            StringBuilder csvContent = new StringBuilder();
+
+            // Add the header row
+            csvContent.AppendLine("ID,Name,CNIC,Contact No,Gender,Marital Status,Relation,Head,Age (Years),Education,Occupation,Address,Religion,Status,Upload Status,Enumerator Name,Enumerator ID,Created Date");
+
+            // Add data rows
+            foreach (var household in householdList)
+            {
+                csvContent.AppendLine($"{household.ID},{household.Name},{household.CNIC},{household.ContactNo},{household.Gender},{household.MaritalStatus},{household.Relation},{household.Head},{household.AgeYears},{household.Education},{household.Occupation},{household.Address},{household.Religion},{household.Status},{household.UploadStatus},{household.EnumeratorName},{household.EnumeratorID},{household.CreatedDate?.ToString("yyyy-MM-dd")}");
+            }
+
+            // Return the CSV file as a download
+            var fileName = "Household_Data.csv";
+            var contentType = "text/csv";
+            return File(Encoding.UTF8.GetBytes(csvContent.ToString()), contentType, fileName);
+        }
+
+        private List<HouseholdDataModel> GetHouseholdData()
+        {
             List<HouseholdDataModel> householdList = new List<HouseholdDataModel>();
             string connectionString = _configuration.GetConnectionString("DefaultConnection");
 
@@ -663,17 +661,7 @@ END;", conn))
             return householdList;
         }
 
-        // Action to display the Household Data in a view
-        public IActionResult HouseholdData()
-        {
 
-            if (string.IsNullOrEmpty(HttpContext.Session.GetString("User")))
-            {
-                return RedirectToAction("Login", "Main");
-            }
-            List<HouseholdDataModel> model = GetHouseholdData();
-            return View(model);
-        }
 
 
         public List<PSCServeyScore> GetPSCServeyScores()
@@ -685,7 +673,52 @@ END;", conn))
 
             using (OracleConnection con = new OracleConnection(connectionString))
             {
-                string query = "SELECT * FROM NRSP.PSC_SERVEY_SCORE";
+                string query = @"
+       SELECT 
+    pss.ID,
+    pss.UUID,
+    cd.DISTRICT AS DISTRICT_NAME,  -- Fetching the district name
+    ct.TEHSIL AS TEHSIL_NAME,      -- Fetching the tehsil name
+    cu.UNIONCOUNCIL AS UC_NAME,    -- Fetching the UC (Union Council) name
+    cr.REVENUEVILLAGE AS RV_NAME,  -- Fetching the revenue village name
+    pss.HH_MEM_ID,
+    pss.RV_VILLAGE_ID,
+    pss.HOUSEHOLD_MEMBERS_COUNT_SCORE,
+    pss.ROOM_SCORE,
+    pss.TOILET_SCORE,
+    pss.TV_SCORE,
+    pss.REFRIGERATOR_SCORE,
+    pss.AIRCONDITIONER_SCORE,
+    pss.COOKING_SCORE,
+    pss.ENGINE_DRIVEN_SCORE,
+    pss.LIVESTOCK_SCORE,
+    pss.LAND_SCORE,
+    pss.HEAD_EDUCATION_SCORE,
+    pss.TOTAL_PSC_SCORE,
+    pss.CREATED_DATE,
+    pss.CELL_PHONE,
+    pss.ELECTRICITY,
+    pss.SOURCE_OF_DRINKING_WATER,
+    pss.LATITUDE,
+    pss.LONGITUDE,
+    pss.LOCATION_ADDRESS,
+    pss.BUFFALO,
+    pss.COW,
+    pss.GOAT,
+    pss.SHEEP,
+    pss.CAMEL,
+    pss.DONKEY,
+    pss.MULE_HORSE,
+    pss.VILLAGE_ID,
+    pss.SCHOOL_GOING_SCORE
+FROM 
+    NRSP.PSC_SERVEY_SCORE pss
+INNER JOIN NRSP.CENSUS_DISTRICT cd ON pss.DISTRICT_ID = cd.DISTRICT_ID
+INNER JOIN NRSP.CENSUS_TEHSIL ct ON pss.TEHSIL_ID = ct.TEHSIL_ID
+INNER JOIN NRSP.CENSUS_UNIONCOUNCIL cu ON pss.UC_ID = cu.UC_ID
+INNER JOIN NRSP.CENSUS_REVENUEVILLAGE cr ON pss.RV_VILLAGE_ID = cr.REVENUEVILLAGE_ID";
+
+
                 using (OracleCommand cmd = new OracleCommand(query, con))
                 {
                     con.Open();
@@ -697,9 +730,11 @@ END;", conn))
                             {
                                 ID = Convert.ToInt32(reader["ID"]),
                                 UUID = reader["UUID"].ToString(),
-                                DISTRICT_ID = reader["DISTRICT_ID"].ToString(),
-                                TEHSIL_ID = reader["TEHSIL_ID"].ToString(),
-                                UC_ID = reader["UC_ID"].ToString(),
+                                DISTRICT_NAME = reader["DISTRICT_NAME"]?.ToString(),
+                                TEHSIL_NAME = reader["TEHSIL_NAME"]?.ToString(),
+                                UC_NAME = reader["UC_NAME"]?.ToString(),
+                                RV_NAME = reader["RV_NAME"]?.ToString(),
+
                                 HH_MEM_ID = reader["HH_MEM_ID"].ToString(),
                                 RV_VILLAGE_ID = reader["RV_VILLAGE_ID"].ToString(),
                                 HOUSEHOLD_MEMBERS_COUNT_SCORE = reader["HOUSEHOLD_MEMBERS_COUNT_SCORE"].ToString(),

@@ -5,11 +5,10 @@
 }
 
 <style>
-
     .card {
-
-        margin-left:100px;
+        margin-left: 100px;
     }
+
     .card-body {
         overflow-x: auto; /* Enables horizontal scrolling */
         padding: 15px;
@@ -22,15 +21,11 @@
     }
 
     @@media (max-width: 992px) {
-        .table-responsive
-
-    {
-        max-width: 100%;
-    }
-
+        .table-responsive {
+            max-width: 100%;
+        }
     }
 </style>
-
 
 <h2>PSC Survey Score Data</h2>
 
@@ -60,6 +55,7 @@
                         <th>District</th>
                         <th>Tehsil</th>
                         <th>UC</th>
+                        <th>RV Village</th>
                         <th>HH Member ID</th>
                         <th>RV Village ID</th>
                         <th>Household Members Score</th>
@@ -98,9 +94,10 @@
                         <tr>
                             <td>@item.ID</td>
                             <td>@item.UUID</td>
-                            <td>@item.DISTRICT_ID</td>
-                            <td>@item.TEHSIL_ID</td>
-                            <td>@item.UC_ID</td>
+                            <td>@item.DISTRICT_NAME</td>
+                            <td>@item.TEHSIL_NAME</td>
+                            <td>@item.UC_NAME</td>
+                            <td>@item.RV_NAME</td>
                             <td>@item.HH_MEM_ID</td>
                             <td>@item.RV_VILLAGE_ID</td>
                             <td>@item.HOUSEHOLD_MEMBERS_COUNT_SCORE</td>

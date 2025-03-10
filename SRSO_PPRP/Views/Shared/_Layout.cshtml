@@ -65,6 +65,20 @@
                     </li>
 
                     <li>
+                        <a asp-controller="Family" asp-action="Index">
+                            <i class="tim-icons icon-bell-55"></i>
+                            <p>Settlement wise Reports</p>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a asp-controller="BetaFamily" asp-action="Index">
+                            <i class="tim-icons icon-align-center"></i>
+                            <p>Settlement wise Reports-Sorted</p>
+                        </a>
+                    </li>
+
+                    <li>
                         <a asp-controller="Main" asp-action="HouseholdData">
                             <i class="tim-icons icon-bell-55"></i>
                             <p>House Hold Data</p>
@@ -215,25 +229,7 @@
             </div>
             <footer class="footer">
                 <div class="container-fluid">
-                    <nav>
-                        <ul>
-                            <li>
-                                <a >
-                                    NRSP-IT
-                                </a>
-                            </li>
-                            <li>
-                                <a >
-                                    About Us
-                                </a>
-                            </li>
-                            <li>
-                                <a >
-                                    Blog
-                                </a>
-                            </li>
-                        </ul>
-                    </nav>
+                    
                     <div class="copyright float-right">
                         ©
                         <script>
@@ -382,6 +378,8 @@
 
         });
     </script>
+
+    @RenderSection("Scripts", required: false)
 </body>
 
 </html>
