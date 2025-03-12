@@ -4,6 +4,7 @@
     {
         public int ID { get; set; }
         public string UUID { get; set; }
+        public string HouseHead { get; set; } // New property for house head name
         public string HH_MEM_ID { get; set; }
         public string Name { get; set; }
         public string ContactNo { get; set; }
@@ -24,6 +25,21 @@
         public string EnumeratorID { get; set; }
         public DateTime? CreatedDate { get; set; }
         public string Religion { get; set; }
+        public string DistrictName { get; set; }
+        public string TehsilName { get; set; }
+        public string UcName { get; set; }
+        public string RvName { get; set; }
+        public string VillageName { get; set; }
+        public string PscScore { get; set; }
+    }
+
+    public class VillageDetails
+    {
+        public string DistrictName { get; set; }
+        public string TehsilName { get; set; }
+        public string UcName { get; set; }
+        public string RvName { get; set; }
+        public string VillageName { get; set; }
     }
 
     public class PSCServeyScore
@@ -70,7 +86,20 @@
         public string? DONKEY { get; set; }
         public string? MULE_HORSE { get; set; }
         public string? VILLAGE_ID { get; set; }
+        public string VILLAGE_NAME { get; set; }
         public string SCHOOL_GOING_SCORE { get; set; }
+   
+    }
+
+
+    public class HHMMData
+    {
+        public string HeadName { get; set; }
+        public string Head { get; set; }
+        public string ContactNo { get; set; }
+        public string EnumeratorName { get; set; }
+        public string EnumeratorID { get; set; }
+        public DateTime? CreatedDate { get; set; }
     }
 
 }

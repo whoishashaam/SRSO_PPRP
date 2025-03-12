@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using OfficeOpenXml;
 using Oracle.ManagedDataAccess.Client;
 using SRSO_PPRP.Models;
 using System;
@@ -18,6 +19,8 @@ namespace SRSO_PPRP.Controllers
         public MainController(IConfiguration configuration)
         {
             _configuration = configuration;
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Use appropriate license
+
         }
 
         public IActionResult Login()
@@ -591,27 +594,80 @@ END;", conn))
 
 
 
-
         public IActionResult HouseholdData()
         {
-            List<HouseholdDataModel> householdList = GetHouseholdData(); // Fetch all household data
+            // Fetch all household data with village details
+            var householdList = GetHouseholdData();
 
-            // Prepare the CSV content
-            StringBuilder csvContent = new StringBuilder();
-
-            // Add the header row
-            csvContent.AppendLine("ID,Name,CNIC,Contact No,Gender,Marital Status,Relation,Head,Age (Years),Education,Occupation,Address,Religion,Status,Upload Status,Enumerator Name,Enumerator ID,Created Date");
-
-            // Add data rows
-            foreach (var household in householdList)
+            // Create an Excel package
+            using (var package = new ExcelPackage())
             {
-                csvContent.AppendLine($"{household.ID},{household.Name},{household.CNIC},{household.ContactNo},{household.Gender},{household.MaritalStatus},{household.Relation},{household.Head},{household.AgeYears},{household.Education},{household.Occupation},{household.Address},{household.Religion},{household.Status},{household.UploadStatus},{household.EnumeratorName},{household.EnumeratorID},{household.CreatedDate?.ToString("yyyy-MM-dd")}");
-            }
+                var worksheet = package.Workbook.Worksheets.Add("Household Data");
 
-            // Return the CSV file as a download
-            var fileName = "Household_Data.csv";
-            var contentType = "text/csv";
-            return File(Encoding.UTF8.GetBytes(csvContent.ToString()), contentType, fileName);
+                // Define headers
+                var headers = new List<string>
+                {
+                    "ID", "UUID", "House Head", "Name", "CNIC", "Contact No", "Gender", "Marital Status",
+                    "Relation", "Head", "Age (Years)", "Education", "Occupation", "Address", "Religion",
+                    "Status", "Upload Status", "Enumerator Name", "Enumerator ID", "Created Date",
+                    "District", "Tehsil", "UC", "RV", "Village", "PSC Score"
+                };
+
+                // Add headers to the worksheet
+                for (int col = 0; col < headers.Count; col++)
+                {
+                    worksheet.Cells[1, col + 1].Value = headers[col];
+                    worksheet.Cells[1, col + 1].Style.Font.Bold = true; // Bold headers
+                }
+
+                // Populate data
+                int row = 2; // Start from row 2 (after headers)
+                foreach (var household in householdList)
+                {
+                    worksheet.Cells[row, 1].Value = household.ID;
+                    worksheet.Cells[row, 2].Value = household.UUID;
+                    worksheet.Cells[row, 3].Value = household.HouseHead; // House Head column
+                    worksheet.Cells[row, 4].Value = household.Name;
+
+                    // Bold the name if this member is the house head
+                    if (household.Head == "1")
+                    {
+                        worksheet.Cells[row, 4].Style.Font.Bold = true;
+                    }
+
+                    worksheet.Cells[row, 5].Value = household.CNIC;
+                    worksheet.Cells[row, 6].Value = household.ContactNo;
+                    worksheet.Cells[row, 7].Value = household.Gender;
+                    worksheet.Cells[row, 8].Value = household.MaritalStatus;
+                    worksheet.Cells[row, 9].Value = household.Relation;
+                    worksheet.Cells[row, 10].Value = household.Head;
+                    worksheet.Cells[row, 11].Value = household.AgeYears;
+                    worksheet.Cells[row, 12].Value = household.Education;
+                    worksheet.Cells[row, 13].Value = household.Occupation;
+                    worksheet.Cells[row, 14].Value = household.Address;
+                    worksheet.Cells[row, 15].Value = household.Religion;
+                    worksheet.Cells[row, 16].Value = household.Status;
+                    worksheet.Cells[row, 17].Value = household.UploadStatus;
+                    worksheet.Cells[row, 18].Value = household.EnumeratorName;
+                    worksheet.Cells[row, 19].Value = household.EnumeratorID;
+                    worksheet.Cells[row, 20].Value = household.CreatedDate?.ToString("yyyy-MM-dd");
+                    worksheet.Cells[row, 21].Value = household.DistrictName;
+                    worksheet.Cells[row, 22].Value = household.TehsilName;
+                    worksheet.Cells[row, 23].Value = household.UcName;
+                    worksheet.Cells[row, 24].Value = household.RvName;
+                    worksheet.Cells[row, 25].Value = household.VillageName;
+                    worksheet.Cells[row, 26].Value = household.PscScore;
+
+                    row++;
+                }
+
+                // Auto-fit columns for better readability
+                worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+                // Convert to byte array for download
+                var fileBytes = package.GetAsByteArray();
+                return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Household_Data.xlsx");
+            }
         }
 
         private List<HouseholdDataModel> GetHouseholdData()
@@ -621,18 +677,114 @@ END;", conn))
 
             using (OracleConnection conn = new OracleConnection(connectionString))
             {
-                string query = "SELECT * FROM NRSP.HH_MM_DATA";
-                using (OracleCommand cmd = new OracleCommand(query, conn))
+                conn.Open();
+
+                // Step 1: Fetch distinct UUIDs and their village IDs from PSC_SERVEY_SCORE
+                string uuidQuery = @"
+                    SELECT DISTINCT s.UUID, s.VILLAGE_ID, s.TOTAL_PSC_SCORE
+                    FROM NRSP.PSC_SERVEY_SCORE s
+                    WHERE s.UUID IN (SELECT UUID FROM NRSP.HH_MM_DATA)";
+
+                Dictionary<string, (string VillageId, string PscScore)> uuidVillageMapping = new Dictionary<string, (string, string)>();
+
+                using (OracleCommand cmd = new OracleCommand(uuidQuery, conn))
                 {
-                    conn.Open();
                     using (OracleDataReader reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
                         {
+                            string uuid = reader["UUID"]?.ToString();
+                            string villageId = reader["VILLAGE_ID"]?.ToString();
+                            string pscScore = reader["TOTAL_PSC_SCORE"]?.ToString();
+                            if (!string.IsNullOrEmpty(uuid) && !string.IsNullOrEmpty(villageId))
+                            {
+                                uuidVillageMapping[uuid] = (villageId, pscScore);
+                            }
+                        }
+                    }
+                }
+
+                // Step 2: Fetch village details for each VILLAGE_ID
+                Dictionary<string, VillageDetails> villageDetailsMapping = new Dictionary<string, VillageDetails>();
+                string villageQuery = @"
+                    SELECT VILLAGENAME_ID, DISTRICT_NAME, TEHSIL_NAME, UC_NAME, REVEUNE_VILLAGE_NAME, VILLAGE_NAME
+                    FROM NRSP.PPRP_SERVAY_CENSUS_DATA
+                    WHERE VILLAGENAME_ID IN (SELECT DISTINCT VILLAGE_ID FROM NRSP.PSC_SERVEY_SCORE)";
+
+                using (OracleCommand cmd = new OracleCommand(villageQuery, conn))
+                {
+                    using (OracleDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string villageId = reader["VILLAGENAME_ID"]?.ToString();
+                            villageDetailsMapping[villageId] = new VillageDetails
+                            {
+                                DistrictName = reader["DISTRICT_NAME"]?.ToString(),
+                                TehsilName = reader["TEHSIL_NAME"]?.ToString(),
+                                UcName = reader["UC_NAME"]?.ToString(),
+                                RvName = reader["REVEUNE_VILLAGE_NAME"]?.ToString(),
+                                VillageName = reader["VILLAGE_NAME"]?.ToString()
+                            };
+                        }
+                    }
+                }
+
+                // Step 3: Fetch house heads for each UUID
+                Dictionary<string, string> houseHeads = new Dictionary<string, string>();
+                string headQuery = @"
+                    SELECT UUID, NAME
+                    FROM NRSP.HH_MM_DATA
+                    WHERE HEAD = '1'";
+
+                using (OracleCommand cmd = new OracleCommand(headQuery, conn))
+                {
+                    using (OracleDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string uuid = reader["UUID"]?.ToString();
+                            string name = reader["NAME"]?.ToString();
+                            if (!string.IsNullOrEmpty(uuid) && !string.IsNullOrEmpty(name))
+                            {
+                                houseHeads[uuid] = name;
+                            }
+                        }
+                    }
+                }
+
+                // Step 4: Fetch all household data from HH_MM_DATA
+                string query = "SELECT * FROM NRSP.HH_MM_DATA";
+                using (OracleCommand cmd = new OracleCommand(query, conn))
+                {
+                    using (OracleDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string uuid = reader["UUID"]?.ToString();
+                            if (string.IsNullOrEmpty(uuid)) continue;
+
+                            // Get village details and PSC score for this UUID
+                            VillageDetails villageDetails = null;
+                            string pscScore = null;
+                            if (uuidVillageMapping.ContainsKey(uuid))
+                            {
+                                var (villageId, score) = uuidVillageMapping[uuid];
+                                pscScore = score;
+                                if (villageDetailsMapping.ContainsKey(villageId))
+                                {
+                                    villageDetails = villageDetailsMapping[villageId];
+                                }
+                            }
+
+                            // Get house head for this UUID
+                            string houseHead = houseHeads.ContainsKey(uuid) ? houseHeads[uuid] : "N/A";
+
                             householdList.Add(new HouseholdDataModel
                             {
                                 ID = reader["ID"] != DBNull.Value ? Convert.ToInt32(reader["ID"]) : 0,
-                                UUID = reader["UUID"]?.ToString(),
+                                UUID = uuid,
+                                HouseHead = houseHead, // Add house head name
                                 HH_MEM_ID = reader["HH_MEM_ID"]?.ToString(),
                                 Name = reader["NAME"]?.ToString(),
                                 ContactNo = reader["CONTACT_NO"]?.ToString(),
@@ -647,12 +799,18 @@ END;", conn))
                                 Occupation = reader["OCCUPATION"]?.ToString(),
                                 CNIC = reader["CNIC"]?.ToString(),
                                 AgeYears = reader["AGE_YEARS"]?.ToString(),
-                                Status = reader["STATUS"] != DBNull.Value ? Convert.ToInt32(reader["STATUS"]) : 0, // Handles NULL
-                                UploadStatus = reader["UPLOAD_STATUS"] != DBNull.Value ? Convert.ToInt32(reader["UPLOAD_STATUS"]) : 0, // Handles NULL
+                                Status = reader["STATUS"] != DBNull.Value ? Convert.ToInt32(reader["STATUS"]) : 0,
+                                UploadStatus = reader["UPLOAD_STATUS"] != DBNull.Value ? Convert.ToInt32(reader["UPLOAD_STATUS"]) : 0,
                                 EnumeratorName = reader["ENUMERATOR_NAME"]?.ToString(),
                                 EnumeratorID = reader["ENUMERATOR_ID"]?.ToString(),
-                                CreatedDate = reader["CREATED_DATE"] != DBNull.Value ? Convert.ToDateTime(reader["CREATED_DATE"]) : (DateTime?)null, // Handles NULL
-                                Religion = reader["RELIGION"]?.ToString()
+                                CreatedDate = reader["CREATED_DATE"] != DBNull.Value ? Convert.ToDateTime(reader["CREATED_DATE"]) : (DateTime?)null,
+                                Religion = reader["RELIGION"]?.ToString(),
+                                DistrictName = villageDetails?.DistrictName,
+                                TehsilName = villageDetails?.TehsilName,
+                                UcName = villageDetails?.UcName,
+                                RvName = villageDetails?.RvName,
+                                VillageName = villageDetails?.VillageName,
+                                PscScore = pscScore
                             });
                         }
                     }
@@ -666,58 +824,57 @@ END;", conn))
 
         public List<PSCServeyScore> GetPSCServeyScores()
         {
-
-            
             List<PSCServeyScore> scores = new List<PSCServeyScore>();
             string connectionString = _configuration.GetConnectionString("DefaultConnection");
 
             using (OracleConnection con = new OracleConnection(connectionString))
             {
                 string query = @"
-       SELECT 
-    pss.ID,
-    pss.UUID,
-    cd.DISTRICT AS DISTRICT_NAME,  -- Fetching the district name
-    ct.TEHSIL AS TEHSIL_NAME,      -- Fetching the tehsil name
-    cu.UNIONCOUNCIL AS UC_NAME,    -- Fetching the UC (Union Council) name
-    cr.REVENUEVILLAGE AS RV_NAME,  -- Fetching the revenue village name
-    pss.HH_MEM_ID,
-    pss.RV_VILLAGE_ID,
-    pss.HOUSEHOLD_MEMBERS_COUNT_SCORE,
-    pss.ROOM_SCORE,
-    pss.TOILET_SCORE,
-    pss.TV_SCORE,
-    pss.REFRIGERATOR_SCORE,
-    pss.AIRCONDITIONER_SCORE,
-    pss.COOKING_SCORE,
-    pss.ENGINE_DRIVEN_SCORE,
-    pss.LIVESTOCK_SCORE,
-    pss.LAND_SCORE,
-    pss.HEAD_EDUCATION_SCORE,
-    pss.TOTAL_PSC_SCORE,
-    pss.CREATED_DATE,
-    pss.CELL_PHONE,
-    pss.ELECTRICITY,
-    pss.SOURCE_OF_DRINKING_WATER,
-    pss.LATITUDE,
-    pss.LONGITUDE,
-    pss.LOCATION_ADDRESS,
-    pss.BUFFALO,
-    pss.COW,
-    pss.GOAT,
-    pss.SHEEP,
-    pss.CAMEL,
-    pss.DONKEY,
-    pss.MULE_HORSE,
-    pss.VILLAGE_ID,
-    pss.SCHOOL_GOING_SCORE
-FROM 
-    NRSP.PSC_SERVEY_SCORE pss
-INNER JOIN NRSP.CENSUS_DISTRICT cd ON pss.DISTRICT_ID = cd.DISTRICT_ID
-INNER JOIN NRSP.CENSUS_TEHSIL ct ON pss.TEHSIL_ID = ct.TEHSIL_ID
-INNER JOIN NRSP.CENSUS_UNIONCOUNCIL cu ON pss.UC_ID = cu.UC_ID
-INNER JOIN NRSP.CENSUS_REVENUEVILLAGE cr ON pss.RV_VILLAGE_ID = cr.REVENUEVILLAGE_ID";
-
+                    SELECT 
+                        pss.ID,
+                        pss.UUID,
+                        cd.DISTRICT AS DISTRICT_NAME,
+                        ct.TEHSIL AS TEHSIL_NAME,
+                        cu.UNIONCOUNCIL AS UC_NAME,
+                        cr.REVENUEVILLAGE AS RV_NAME,
+                        cv.VILLAGE_NAME AS VILLAGE_NAME, -- Fetching village name
+                        pss.HH_MEM_ID,
+                        pss.RV_VILLAGE_ID,
+                        pss.HOUSEHOLD_MEMBERS_COUNT_SCORE,
+                        pss.ROOM_SCORE,
+                        pss.TOILET_SCORE,
+                        pss.TV_SCORE,
+                        pss.REFRIGERATOR_SCORE,
+                        pss.AIRCONDITIONER_SCORE,
+                        pss.COOKING_SCORE,
+                        pss.ENGINE_DRIVEN_SCORE,
+                        pss.LIVESTOCK_SCORE,
+                        pss.LAND_SCORE,
+                        pss.HEAD_EDUCATION_SCORE,
+                        pss.TOTAL_PSC_SCORE,
+                        pss.CREATED_DATE,
+                        pss.CELL_PHONE,
+                        pss.ELECTRICITY,
+                        pss.SOURCE_OF_DRINKING_WATER,
+                        pss.LATITUDE,
+                        pss.LONGITUDE,
+                        pss.LOCATION_ADDRESS,
+                        pss.BUFFALO,
+                        pss.COW,
+                        pss.GOAT,
+                        pss.SHEEP,
+                        pss.CAMEL,
+                        pss.DONKEY,
+                        pss.MULE_HORSE,
+                        pss.VILLAGE_ID,
+                        pss.SCHOOL_GOING_SCORE
+                    FROM 
+                        NRSP.PSC_SERVEY_SCORE pss
+                    INNER JOIN NRSP.CENSUS_DISTRICT cd ON pss.DISTRICT_ID = cd.DISTRICT_ID
+                    INNER JOIN NRSP.CENSUS_TEHSIL ct ON pss.TEHSIL_ID = ct.TEHSIL_ID
+                    INNER JOIN NRSP.CENSUS_UNIONCOUNCIL cu ON pss.UC_ID = cu.UC_ID
+                    INNER JOIN NRSP.CENSUS_REVENUEVILLAGE cr ON pss.RV_VILLAGE_ID = cr.REVENUEVILLAGE_ID
+                    LEFT JOIN NRSP.PPRP_SERVAY_CENSUS_DATA cv ON pss.VILLAGE_ID = cv.VILLAGENAME_ID";
 
                 using (OracleCommand cmd = new OracleCommand(query, con))
                 {
@@ -734,7 +891,7 @@ INNER JOIN NRSP.CENSUS_REVENUEVILLAGE cr ON pss.RV_VILLAGE_ID = cr.REVENUEVILLAG
                                 TEHSIL_NAME = reader["TEHSIL_NAME"]?.ToString(),
                                 UC_NAME = reader["UC_NAME"]?.ToString(),
                                 RV_NAME = reader["RV_NAME"]?.ToString(),
-
+                                VILLAGE_NAME = reader["VILLAGE_NAME"]?.ToString(), // Add village name
                                 HH_MEM_ID = reader["HH_MEM_ID"].ToString(),
                                 RV_VILLAGE_ID = reader["RV_VILLAGE_ID"].ToString(),
                                 HOUSEHOLD_MEMBERS_COUNT_SCORE = reader["HOUSEHOLD_MEMBERS_COUNT_SCORE"].ToString(),
@@ -773,15 +930,168 @@ INNER JOIN NRSP.CENSUS_REVENUEVILLAGE cr ON pss.RV_VILLAGE_ID = cr.REVENUEVILLAG
             return scores;
         }
 
+        // Existing method (unchanged)
         public IActionResult PSCServeyScore()
         {
-
             if (string.IsNullOrEmpty(HttpContext.Session.GetString("User")))
             {
                 return RedirectToAction("Login", "Main");
             }
             List<PSCServeyScore> model = GetPSCServeyScores();
             return View(model);
+        }
+
+        // Updated method to include Village Name after RV Name
+        public IActionResult PSC_Survey_Report_Updated()
+        {
+            if (string.IsNullOrEmpty(HttpContext.Session.GetString("User")))
+            {
+                return RedirectToAction("Login", "Main");
+            }
+
+            // Fetch PSC survey scores
+            var pscScores = GetPSCServeyScores();
+
+            // Ensure each UUID appears only once (take the first occurrence)
+            var uniquePscScores = pscScores
+                .GroupBy(s => s.UUID)
+                .Select(g => g.First())
+                .ToList();
+
+            // Dictionary to store HH_MM_DATA details for each UUID (head info)
+            var hhDataMap = new Dictionary<string, HHMMData>();
+            string connectionString = _configuration.GetConnectionString("DefaultConnection");
+
+            using (OracleConnection conn = new OracleConnection(connectionString))
+            {
+                conn.Open();
+                string hhQuery = @"
+                    SELECT UUID, NAME, CONTACT_NO, ENUMERATOR_NAME, ENUMERATOR_ID, CREATED_DATE
+                    FROM NRSP.HH_MM_DATA
+                    WHERE HEAD = '1'"; // Fetch house head name and details
+
+                using (OracleCommand cmd = new OracleCommand(hhQuery, conn))
+                {
+                    using (OracleDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string uuid = reader["UUID"]?.ToString();
+                            if (!string.IsNullOrEmpty(uuid) && !hhDataMap.ContainsKey(uuid))
+                            {
+                                hhDataMap[uuid] = new HHMMData
+                                {
+                                    HeadName = reader["NAME"]?.ToString(), // Store the house head's name
+                                    ContactNo = reader["CONTACT_NO"]?.ToString(),
+                                    EnumeratorName = reader["ENUMERATOR_NAME"]?.ToString(),
+                                    EnumeratorID = reader["ENUMERATOR_ID"]?.ToString(),
+                                    CreatedDate = reader["CREATED_DATE"] != DBNull.Value ? Convert.ToDateTime(reader["CREATED_DATE"]) : (DateTime?)null
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Create an Excel package
+            using (var package = new ExcelPackage())
+            {
+                var worksheet = package.Workbook.Worksheets.Add("PSC Survey Report");
+
+                // Define headers (add Village Name after RV Name)
+                var headers = new List<string>
+                {
+                    "ID", "UUID", "District Name", "Tehsil Name", "UC Name", "RV Name", "Village Name", // Added Village Name here
+                    "Head", "Contact No", "Enumerator Name", "Enumerator ID", "Created Date",
+                    "Household Members Count Score", "Room Score", "Toilet Score", "TV Score",
+                    "Refrigerator Score", "Air Conditioner Score", "Cooking Score", "Engine Driven Score",
+                    "Livestock Score", "Land Score", "Head Education Score", "Total PSC Score",
+                    "Cell Phone", "Electricity", "Source of Drinking Water", "Latitude", "Longitude",
+                    "Location Address", "Buffalo", "Cow", "Goat", "Sheep", "Camel", "Donkey",
+                    "Mule/Horse", "Village ID", "School Going Score"
+                };
+
+                // Add headers to the worksheet
+                for (int col = 0; col < headers.Count; col++)
+                {
+                    worksheet.Cells[1, col + 1].Value = headers[col];
+                    worksheet.Cells[1, col + 1].Style.Font.Bold = true; // Bold headers
+                }
+
+                // Populate data
+                int row = 2; // Start from row 2 (after headers)
+                foreach (var score in uniquePscScores)
+                {
+                    worksheet.Cells[row, 1].Value = score.ID;
+                    worksheet.Cells[row, 2].Value = score.UUID;
+                    worksheet.Cells[row, 3].Value = score.DISTRICT_NAME;
+                    worksheet.Cells[row, 4].Value = score.TEHSIL_NAME;
+                    worksheet.Cells[row, 5].Value = score.UC_NAME;
+                    worksheet.Cells[row, 6].Value = score.RV_NAME;
+                    worksheet.Cells[row, 7].Value = score.VILLAGE_NAME; // Add Village Name here
+
+                    // Fetch HH_MM_DATA details for this UUID (house head)
+                    if (hhDataMap.ContainsKey(score.UUID))
+                    {
+                        var hhData = hhDataMap[score.UUID];
+                        var headCell = worksheet.Cells[row, 8];
+                        headCell.Value = hhData.HeadName; // Set house head name
+                        headCell.Style.Font.Bold = true; // Bold the house head name
+                        worksheet.Cells[row, 9].Value = hhData.ContactNo; // Contact No for house head
+                        worksheet.Cells[row, 10].Value = hhData.EnumeratorName;
+                        worksheet.Cells[row, 11].Value = hhData.EnumeratorID;
+                        worksheet.Cells[row, 12].Value = hhData.CreatedDate?.ToString("yyyy-MM-dd");
+                    }
+                    else
+                    {
+                        worksheet.Cells[row, 8].Value = "N/A"; // Head
+                        worksheet.Cells[row, 9].Value = "N/A"; // Contact No
+                        worksheet.Cells[row, 10].Value = "N/A"; // Enumerator Name
+                        worksheet.Cells[row, 11].Value = "N/A"; // Enumerator ID
+                        worksheet.Cells[row, 12].Value = "N/A"; // Created Date
+                    }
+
+                    worksheet.Cells[row, 13].Value = score.HOUSEHOLD_MEMBERS_COUNT_SCORE;
+                    worksheet.Cells[row, 14].Value = score.ROOM_SCORE;
+                    worksheet.Cells[row, 15].Value = score.TOILET_SCORE;
+                    worksheet.Cells[row, 16].Value = score.TV_SCORE;
+                    worksheet.Cells[row, 17].Value = score.REFRIGERATOR_SCORE;
+                    worksheet.Cells[row, 18].Value = score.AIRCONDITIONER_SCORE;
+                    worksheet.Cells[row, 19].Value = score.COOKING_SCORE;
+                    worksheet.Cells[row, 20].Value = score.ENGINE_DRIVEN_SCORE;
+                    worksheet.Cells[row, 21].Value = score.LIVESTOCK_SCORE;
+                    worksheet.Cells[row, 22].Value = score.LAND_SCORE;
+                    worksheet.Cells[row, 23].Value = score.HEAD_EDUCATION_SCORE;
+                    worksheet.Cells[row, 24].Value = score.TOTAL_PSC_SCORE;
+                    worksheet.Cells[row, 25].Value = score.CELL_PHONE;
+                    worksheet.Cells[row, 26].Value = score.ELECTRICITY;
+                    worksheet.Cells[row, 27].Value = score.SOURCE_OF_DRINKING_WATER;
+                    worksheet.Cells[row, 28].Value = score.LATITUDE;
+                    worksheet.Cells[row, 29].Value = score.LONGITUDE;
+                    worksheet.Cells[row, 30].Value = score.LOCATION_ADDRESS;
+                    worksheet.Cells[row, 31].Value = score.BUFFALO;
+                    worksheet.Cells[row, 32].Value = score.COW;
+                    worksheet.Cells[row, 33].Value = score.GOAT;
+                    worksheet.Cells[row, 34].Value = score.SHEEP;
+                    worksheet.Cells[row, 35].Value = score.CAMEL;
+                    worksheet.Cells[row, 36].Value = score.DONKEY;
+                    worksheet.Cells[row, 37].Value = score.MULE_HORSE;
+                    worksheet.Cells[row, 38].Value = score.VILLAGE_ID;
+                    worksheet.Cells[row, 39].Value = score.SCHOOL_GOING_SCORE;
+
+                    row++;
+                }
+
+                // Freeze the header row
+                worksheet.View.FreezePanes(2, 1); // Freeze starting from row 2, column 1
+
+                // Auto-fit columns for better readability
+                worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+                // Convert to byte array for download
+                var fileBytes = package.GetAsByteArray();
+                return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "PSC_Survey_Report.xlsx");
+            }
         }
     }
 }
