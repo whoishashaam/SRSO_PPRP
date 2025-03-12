@@ -100,6 +100,8 @@
         public string EnumeratorName { get; set; }
         public string EnumeratorID { get; set; }
         public DateTime? CreatedDate { get; set; }
+
+        public string Address { get; set; }
     }
 
 }

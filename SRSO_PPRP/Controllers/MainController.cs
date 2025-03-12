@@ -942,6 +942,7 @@ END;", conn))
         }
 
         // Updated method to include Village Name after RV Name
+        // Updated method to include Full Address
         public IActionResult PSC_Survey_Report_Updated()
         {
             if (string.IsNullOrEmpty(HttpContext.Session.GetString("User")))
@@ -966,9 +967,9 @@ END;", conn))
             {
                 conn.Open();
                 string hhQuery = @"
-                    SELECT UUID, NAME, CONTACT_NO, ENUMERATOR_NAME, ENUMERATOR_ID, CREATED_DATE
+                    SELECT UUID, NAME, CONTACT_NO, ENUMERATOR_NAME, ENUMERATOR_ID, CREATED_DATE, ADDRESS
                     FROM NRSP.HH_MM_DATA
-                    WHERE HEAD = '1'"; // Fetch house head name and details
+                    WHERE HEAD = '1'"; // Fetch house head name, address, and details
 
                 using (OracleCommand cmd = new OracleCommand(hhQuery, conn))
                 {
@@ -981,11 +982,12 @@ END;", conn))
                             {
                                 hhDataMap[uuid] = new HHMMData
                                 {
-                                    HeadName = reader["NAME"]?.ToString(), // Store the house head's name
+                                    HeadName = reader["NAME"]?.ToString(),
                                     ContactNo = reader["CONTACT_NO"]?.ToString(),
                                     EnumeratorName = reader["ENUMERATOR_NAME"]?.ToString(),
                                     EnumeratorID = reader["ENUMERATOR_ID"]?.ToString(),
-                                    CreatedDate = reader["CREATED_DATE"] != DBNull.Value ? Convert.ToDateTime(reader["CREATED_DATE"]) : (DateTime?)null
+                                    CreatedDate = reader["CREATED_DATE"] != DBNull.Value ? Convert.ToDateTime(reader["CREATED_DATE"]) : (DateTime?)null,
+                                    Address = reader["ADDRESS"]?.ToString() // Fetch the address
                                 };
                             }
                         }
@@ -998,10 +1000,11 @@ END;", conn))
             {
                 var worksheet = package.Workbook.Worksheets.Add("PSC Survey Report");
 
-                // Define headers (add Village Name after RV Name)
+                // Define headers (add Full Address after Village Name)
                 var headers = new List<string>
                 {
-                    "ID", "UUID", "District Name", "Tehsil Name", "UC Name", "RV Name", "Village Name", // Added Village Name here
+                    "ID", "UUID", "District Name", "Tehsil Name", "UC Name", "RV Name", "Village Name",
+                    "Full Address", // Added Full Address here
                     "Head", "Contact No", "Enumerator Name", "Enumerator ID", "Created Date",
                     "Household Members Count Score", "Room Score", "Toilet Score", "TV Score",
                     "Refrigerator Score", "Air Conditioner Score", "Cooking Score", "Engine Driven Score",
@@ -1028,56 +1031,58 @@ END;", conn))
                     worksheet.Cells[row, 4].Value = score.TEHSIL_NAME;
                     worksheet.Cells[row, 5].Value = score.UC_NAME;
                     worksheet.Cells[row, 6].Value = score.RV_NAME;
-                    worksheet.Cells[row, 7].Value = score.VILLAGE_NAME; // Add Village Name here
+                    worksheet.Cells[row, 7].Value = score.VILLAGE_NAME;
 
                     // Fetch HH_MM_DATA details for this UUID (house head)
                     if (hhDataMap.ContainsKey(score.UUID))
                     {
                         var hhData = hhDataMap[score.UUID];
-                        var headCell = worksheet.Cells[row, 8];
+                        worksheet.Cells[row, 8].Value = hhData.Address; // Add Full Address
+                        var headCell = worksheet.Cells[row, 9];
                         headCell.Value = hhData.HeadName; // Set house head name
                         headCell.Style.Font.Bold = true; // Bold the house head name
-                        worksheet.Cells[row, 9].Value = hhData.ContactNo; // Contact No for house head
-                        worksheet.Cells[row, 10].Value = hhData.EnumeratorName;
-                        worksheet.Cells[row, 11].Value = hhData.EnumeratorID;
-                        worksheet.Cells[row, 12].Value = hhData.CreatedDate?.ToString("yyyy-MM-dd");
+                        worksheet.Cells[row, 10].Value = hhData.ContactNo; // Contact No for house head
+                        worksheet.Cells[row, 11].Value = hhData.EnumeratorName;
+                        worksheet.Cells[row, 12].Value = hhData.EnumeratorID;
+                        worksheet.Cells[row, 13].Value = hhData.CreatedDate?.ToString("yyyy-MM-dd");
                     }
                     else
                     {
-                        worksheet.Cells[row, 8].Value = "N/A"; // Head
-                        worksheet.Cells[row, 9].Value = "N/A"; // Contact No
-                        worksheet.Cells[row, 10].Value = "N/A"; // Enumerator Name
-                        worksheet.Cells[row, 11].Value = "N/A"; // Enumerator ID
-                        worksheet.Cells[row, 12].Value = "N/A"; // Created Date
+                        worksheet.Cells[row, 8].Value = "N/A"; // Full Address
+                        worksheet.Cells[row, 9].Value = "N/A"; // Head
+                        worksheet.Cells[row, 10].Value = "N/A"; // Contact No
+                        worksheet.Cells[row, 11].Value = "N/A"; // Enumerator Name
+                        worksheet.Cells[row, 12].Value = "N/A"; // Enumerator ID
+                        worksheet.Cells[row, 13].Value = "N/A"; // Created Date
                     }
 
-                    worksheet.Cells[row, 13].Value = score.HOUSEHOLD_MEMBERS_COUNT_SCORE;
-                    worksheet.Cells[row, 14].Value = score.ROOM_SCORE;
-                    worksheet.Cells[row, 15].Value = score.TOILET_SCORE;
-                    worksheet.Cells[row, 16].Value = score.TV_SCORE;
-                    worksheet.Cells[row, 17].Value = score.REFRIGERATOR_SCORE;
-                    worksheet.Cells[row, 18].Value = score.AIRCONDITIONER_SCORE;
-                    worksheet.Cells[row, 19].Value = score.COOKING_SCORE;
-                    worksheet.Cells[row, 20].Value = score.ENGINE_DRIVEN_SCORE;
-                    worksheet.Cells[row, 21].Value = score.LIVESTOCK_SCORE;
-                    worksheet.Cells[row, 22].Value = score.LAND_SCORE;
-                    worksheet.Cells[row, 23].Value = score.HEAD_EDUCATION_SCORE;
-                    worksheet.Cells[row, 24].Value = score.TOTAL_PSC_SCORE;
-                    worksheet.Cells[row, 25].Value = score.CELL_PHONE;
-                    worksheet.Cells[row, 26].Value = score.ELECTRICITY;
-                    worksheet.Cells[row, 27].Value = score.SOURCE_OF_DRINKING_WATER;
-                    worksheet.Cells[row, 28].Value = score.LATITUDE;
-                    worksheet.Cells[row, 29].Value = score.LONGITUDE;
-                    worksheet.Cells[row, 30].Value = score.LOCATION_ADDRESS;
-                    worksheet.Cells[row, 31].Value = score.BUFFALO;
-                    worksheet.Cells[row, 32].Value = score.COW;
-                    worksheet.Cells[row, 33].Value = score.GOAT;
-                    worksheet.Cells[row, 34].Value = score.SHEEP;
-                    worksheet.Cells[row, 35].Value = score.CAMEL;
-                    worksheet.Cells[row, 36].Value = score.DONKEY;
-                    worksheet.Cells[row, 37].Value = score.MULE_HORSE;
-                    worksheet.Cells[row, 38].Value = score.VILLAGE_ID;
-                    worksheet.Cells[row, 39].Value = score.SCHOOL_GOING_SCORE;
+                    worksheet.Cells[row, 14].Value = score.HOUSEHOLD_MEMBERS_COUNT_SCORE;
+                    worksheet.Cells[row, 15].Value = score.ROOM_SCORE;
+                    worksheet.Cells[row, 16].Value = score.TOILET_SCORE;
+                    worksheet.Cells[row, 17].Value = score.TV_SCORE;
+                    worksheet.Cells[row, 18].Value = score.REFRIGERATOR_SCORE;
+                    worksheet.Cells[row, 19].Value = score.AIRCONDITIONER_SCORE;
+                    worksheet.Cells[row, 20].Value = score.COOKING_SCORE;
+                    worksheet.Cells[row, 21].Value = score.ENGINE_DRIVEN_SCORE;
+                    worksheet.Cells[row, 22].Value = score.LIVESTOCK_SCORE;
+                    worksheet.Cells[row, 23].Value = score.LAND_SCORE;
+                    worksheet.Cells[row, 24].Value = score.HEAD_EDUCATION_SCORE;
+                    worksheet.Cells[row, 25].Value = score.TOTAL_PSC_SCORE;
+                    worksheet.Cells[row, 26].Value = score.CELL_PHONE;
+                    worksheet.Cells[row, 27].Value = score.ELECTRICITY;
+                    worksheet.Cells[row, 28].Value = score.SOURCE_OF_DRINKING_WATER;
+                    worksheet.Cells[row, 29].Value = score.LATITUDE;
+                    worksheet.Cells[row, 30].Value = score.LONGITUDE;
+                    worksheet.Cells[row, 31].Value = score.LOCATION_ADDRESS;
+                    worksheet.Cells[row, 32].Value = score.BUFFALO;
+                    worksheet.Cells[row, 33].Value = score.COW;
+                    worksheet.Cells[row, 34].Value = score.GOAT;
+                    worksheet.Cells[row, 35].Value = score.SHEEP;
+                    worksheet.Cells[row, 36].Value = score.CAMEL;
+                    worksheet.Cells[row, 37].Value = score.DONKEY;
+                    worksheet.Cells[row, 38].Value = score.MULE_HORSE;
+                    worksheet.Cells[row, 39].Value = score.VILLAGE_ID;
+                    worksheet.Cells[row, 40].Value = score.SCHOOL_GOING_SCORE;
 
                     row++;
                 }
