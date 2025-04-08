@@ -1,0 +1,370 @@
+﻿@model PSCReportFilterViewModel
+
+@{
+    ViewData["Title"] = "Download PSC Report by Enumerator";
+}
+
+<!-- Updated CSS to match the dashboard layout -->
+<style>
+    .form-container {
+        margin-top: 80px; /* Adjust based on your navbar height */
+        max-width: 800px; /* Limit the form width */
+        margin-left: auto;
+        margin-right: auto;
+        padding: 20px;
+        background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent dark background */
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem; /* Add spacing between fields */
+    }
+
+        .form-group label {
+            color: #fff; /* White labels for readability on dark background */
+        }
+
+    .input-group-text {
+        background-color: #333; /* Darker background for input group */
+        border-right: none;
+        color: #fff; /* White icon color */
+    }
+
+    .form-control {
+        border-left: none;
+        background-color: #444; /* Darker input background */
+        color: #fff; /* White text for inputs */
+        border-color: #555; /* Slightly lighter border for contrast */
+    }
+
+        .form-control option {
+            background-color: #444; /* Dark background for dropdown options */
+            color: #fff; /* White text for dropdown options */
+        }
+
+    .btn-primary {
+        background-color: #ff4081; /* Match the pink button color from the screenshot */
+        border-color: #ff4081;
+    }
+
+        .btn-primary:hover {
+            background-color: #e91e63; /* Slightly darker pink on hover */
+            border-color: #e91e63;
+        }
+
+    h2 {
+        color: #fff; /* White heading for readability */
+    }
+
+    .alert-danger {
+        background-color: rgba(220, 53, 69, 0.9); /* Semi-transparent red for alerts */
+        color: #fff;
+        border-color: #dc3545;
+    }
+</style>
+
+<h2 class="text-center">Download PSC Report by Enumerator</h2>
+
+@if (TempData["Message"] != null)
+{
+    <div class="alert alert-danger">@TempData["Message"]</div>
+}
+
+<div class="form-container">
+    <form asp-action="DownloadPSCReportByEnumerator" method="post">
+        <div class="row">
+            <!-- District -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="SelectedDistrict">District</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
+                        <select asp-for="SelectedDistrict" asp-items="@(Model?.Districts ?? new List<SelectListItem>())" class="form-control" onchange="loadPSCTehsils()">
+                            <option value="">-- Select District --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tehsil -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="SelectedTehsil">Tehsil</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-map"></i></span>
+                        <select asp-for="SelectedTehsil" class="form-control" onchange="loadPSCUCs()">
+                            <option value="">-- Select Tehsil --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Union Council -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="SelectedUC">Union Council</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-building"></i></span>
+                        <select asp-for="SelectedUC" class="form-control" onchange="loadPSCRVs()">
+                            <option value="">-- Select UC --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revenue Village -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="SelectedRV">Revenue Village</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-house"></i></span>
+                        <select asp-for="SelectedRV" class="form-control" onchange="loadPSCVillages()">
+                            <option value="">-- Select Revenue Village --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Village -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="SelectedVillage">Village</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-tree"></i></span>
+                        <select asp-for="SelectedVillage" class="form-control" onchange="loadPSCEnumerators()">
+                            <option value="">-- Select Village --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enumerator -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="SelectedEnumerator">Enumerator</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <select asp-for="SelectedEnumerator" class="form-control">
+                            <option value="">-- Select Enumerator --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary">Download Report</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <!-- Include Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <script>
+        function loadPSCTehsils() {
+            var district = $("#SelectedDistrict").val();
+            $("#SelectedTehsil").empty().append('<option value="">-- Select Tehsil --</option>').prop("disabled", true).append('<option value="">Loading...</option>');
+            $("#SelectedUC").empty().append('<option value="">-- Select UC --</option>').prop("disabled", true);
+            $("#SelectedRV").empty().append('<option value="">-- Select Revenue Village --</option>').prop("disabled", true);
+            $("#SelectedVillage").empty().append('<option value="">-- Select Village --</option>').prop("disabled", true);
+            $("#SelectedEnumerator").empty().append('<option value="">-- Select Enumerator --</option>').prop("disabled", true);
+
+            if (district) {
+                $.getJSON("/Family/GetPSCTehsils", { district: district }, function (data) {
+                    $("#SelectedTehsil").empty().append('<option value="">-- Select Tehsil --</option>');
+                    console.log("Tehsils response:", data);
+
+                    if (!data || data.length === 0) {
+                        alert("No tehsils found for the selected district.");
+                    } else {
+                        $.each(data, function (i, item) {
+                            var itemValue = item.value || item.Value || "";
+                            var itemText = item.text || item.Text || "";
+                            if (itemValue && itemText) {
+                                $("#SelectedTehsil").append('<option value="' + itemValue + '">' + itemText + '</option>');
+                            } else {
+                                console.warn("Invalid item in tehsils response:", item);
+                            }
+                        });
+                    }
+                }).fail(function (jqXHR, textStatus, errorThrown) {
+                    $("#SelectedTehsil").empty().append('<option value="">-- Select Tehsil --</option>');
+                    console.error("Error loading tehsils:", textStatus, errorThrown);
+                    alert("Error loading tehsils. Please try again.");
+                }).always(function () {
+                    $("#SelectedTehsil").prop("disabled", false);
+                    $("#SelectedUC").prop("disabled", false);
+                    $("#SelectedRV").prop("disabled", false);
+                    $("#SelectedVillage").prop("disabled", false);
+                    $("#SelectedEnumerator").prop("disabled", false);
+                });
+            } else {
+                $("#SelectedTehsil").prop("disabled", false);
+                $("#SelectedUC").prop("disabled", false);
+                $("#SelectedRV").prop("disabled", false);
+                $("#SelectedVillage").prop("disabled", false);
+                $("#SelectedEnumerator").prop("disabled", false);
+            }
+        }
+
+        function loadPSCUCs() {
+            var tehsil = $("#SelectedTehsil").val();
+            $("#SelectedUC").empty().append('<option value="">-- Select UC --</option>').prop("disabled", true).append('<option value="">Loading...</option>');
+            $("#SelectedRV").empty().append('<option value="">-- Select Revenue Village --</option>').prop("disabled", true);
+            $("#SelectedVillage").empty().append('<option value="">-- Select Village --</option>').prop("disabled", true);
+            $("#SelectedEnumerator").empty().append('<option value="">-- Select Enumerator --</option>').prop("disabled", true);
+
+            if (tehsil) {
+                $.getJSON("/Family/GetPSCUCs", { tehsil: tehsil }, function (data) {
+                    $("#SelectedUC").empty().append('<option value="">-- Select UC --</option>');
+                    console.log("UCs response:", data);
+
+                    if (!data || data.length === 0) {
+                        alert("No union councils found for the selected tehsil.");
+                    } else {
+                        $.each(data, function (i, item) {
+                            var itemValue = item.value || item.Value || "";
+                            var itemText = item.text || item.Text || "";
+                            if (itemValue && itemText) {
+                                $("#SelectedUC").append('<option value="' + itemValue + '">' + itemText + '</option>');
+                            } else {
+                                console.warn("Invalid item in UCs response:", item);
+                            }
+                        });
+                    }
+                }).fail(function (jqXHR, textStatus, errorThrown) {
+                    $("#SelectedUC").empty().append('<option value="">-- Select UC --</option>');
+                    console.error("Error loading union councils:", textStatus, errorThrown);
+                    alert("Error loading union councils. Please try again.");
+                }).always(function () {
+                    $("#SelectedUC").prop("disabled", false);
+                    $("#SelectedRV").prop("disabled", false);
+                    $("#SelectedVillage").prop("disabled", false);
+                    $("#SelectedEnumerator").prop("disabled", false);
+                });
+            } else {
+                $("#SelectedUC").prop("disabled", false);
+                $("#SelectedRV").prop("disabled", false);
+                $("#SelectedVillage").prop("disabled", false);
+                $("#SelectedEnumerator").prop("disabled", false);
+            }
+        }
+
+        function loadPSCRVs() {
+            var uc = $("#SelectedUC").val();
+            $("#SelectedRV").empty().append('<option value="">-- Select Revenue Village --</option>').prop("disabled", true).append('<option value="">Loading...</option>');
+            $("#SelectedVillage").empty().append('<option value="">-- Select Village --</option>').prop("disabled", true);
+            $("#SelectedEnumerator").empty().append('<option value="">-- Select Enumerator --</option>').prop("disabled", true);
+
+            if (uc) {
+                $.getJSON("/Family/GetPSCRVs", { uc: uc }, function (data) {
+                    $("#SelectedRV").empty().append('<option value="">-- Select Revenue Village --</option>');
+                    console.log("Revenue Villages response:", data);
+
+                    if (!data || data.length === 0) {
+                        alert("No revenue villages found for the selected union council.");
+                    } else {
+                        $.each(data, function (i, item) {
+                            var itemValue = item.value || item.Value || "";
+                            var itemText = item.text || item.Text || "";
+                            if (itemValue && itemText) {
+                                $("#SelectedRV").append('<option value="' + itemValue + '">' + itemText + '</option>');
+                            } else {
+                                console.warn("Invalid item in revenue villages response:", item);
+                            }
+                        });
+                    }
+                }).fail(function (jqXHR, textStatus, errorThrown) {
+                    $("#SelectedRV").empty().append('<option value="">-- Select Revenue Village --</option>');
+                    console.error("Error loading revenue villages:", textStatus, errorThrown);
+                    alert("Error loading revenue villages. Please try again.");
+                }).always(function () {
+                    $("#SelectedRV").prop("disabled", false);
+                    $("#SelectedVillage").prop("disabled", false);
+                    $("#SelectedEnumerator").prop("disabled", false);
+                });
+            } else {
+                $("#SelectedRV").prop("disabled", false);
+                $("#SelectedVillage").prop("disabled", false);
+                $("#SelectedEnumerator").prop("disabled", false);
+            }
+        }
+
+        function loadPSCVillages() {
+            var rv = $("#SelectedRV").val();
+            $("#SelectedVillage").empty().append('<option value="">-- Select Village --</option>').prop("disabled", true).append('<option value="">Loading...</option>');
+            $("#SelectedEnumerator").empty().append('<option value="">-- Select Enumerator --</option>').prop("disabled", true);
+
+            if (rv) {
+                $.getJSON("/Family/GetPSCVillages", { rv: rv }, function (data) {
+                    $("#SelectedVillage").empty().append('<option value="">-- Select Village --</option>');
+                    console.log("Villages response:", data);
+
+                    if (!data || data.length === 0) {
+                        alert("No villages found for the selected revenue village.");
+                    } else {
+                        $.each(data, function (i, item) {
+                            var itemValue = item.value || item.Value || "";
+                            var itemText = item.text || item.Text || "";
+                            if (itemValue && itemText) {
+                                $("#SelectedVillage").append('<option value="' + itemValue + '">' + itemText + '</option>');
+                            } else {
+                                console.warn("Invalid item in villages response:", item);
+                            }
+                        });
+                    }
+                }).fail(function (jqXHR, textStatus, errorThrown) {
+                    $("#SelectedVillage").empty().append('<option value="">-- Select Village --</option>');
+                    console.error("Error loading villages:", textStatus, errorThrown);
+                    alert("Error loading villages. Please try again.");
+                }).always(function () {
+                    $("#SelectedVillage").prop("disabled", false);
+                    $("#SelectedEnumerator").prop("disabled", false);
+                });
+            } else {
+                $("#SelectedVillage").prop("disabled", false);
+                $("#SelectedEnumerator").prop("disabled", false);
+            }
+        }
+
+        function loadPSCEnumerators() {
+            var village = $("#SelectedVillage").val();
+            $("#SelectedEnumerator").empty().append('<option value="">-- Select Enumerator --</option>').prop("disabled", true).append('<option value="">Loading...</option>');
+
+            if (village) {
+                $.getJSON("/Family/GetPSCEnumerators", { village: village }, function (data) {
+                    $("#SelectedEnumerator").empty().append('<option value="">-- Select Enumerator --</option>');
+                    console.log("Enumerators response:", data);
+
+                    if (!data || data.length === 0) {
+                        alert("No enumerators found for the selected village.");
+                    } else {
+                        $.each(data, function (i, item) {
+                            var itemValue = item.value || item.Value || "";
+                            var itemText = item.text || item.Text || "";
+                            if (itemValue && itemText) {
+                                $("#SelectedEnumerator").append('<option value="' + itemValue + '">' + itemText + '</option>');
+                            } else {
+                                console.warn("Invalid item in enumerators response:", item);
+                            }
+                        });
+                    }
+                }).fail(function (jqXHR, textStatus, errorThrown) {
+                    $("#SelectedEnumerator").empty().append('<option value="">-- Select Enumerator --</option>');
+                    console.error("Error loading enumerators:", textStatus, errorThrown);
+                    alert("Error loading enumerators. Please try again.");
+                }).always(function () {
+                    $("#SelectedEnumerator").prop("disabled", false);
+                });
+            } else {
+                $("#SelectedEnumerator").prop("disabled", false);
+            }
+        }
+    </script>
+}

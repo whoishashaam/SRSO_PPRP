@@ -64,12 +64,12 @@
                         </a>    
                     </li>
 
-                    <li>
+                    @* <li>
                         <a asp-controller="Family" asp-action="Index">
                             <i class="tim-icons icon-bell-55"></i>
                             <p>Settlement wise Reports</p>
                         </a>
-                    </li>
+                    </li> *@
 
                     <li>
                         <a asp-controller="BetaFamily" asp-action="Index">
@@ -88,7 +88,7 @@
                     <li>
                         <a asp-controller="Main" asp-action="PSCServeyScore">
                             <i class="tim-icons icon-single-02"></i>
-                            <p>PSC Servey</p>
+                            <p>PSC Servey- Tabular View</p>
                         </a>
                     </li>
 
@@ -96,6 +96,13 @@
                         <a asp-controller="Main" asp-action="PSC_Survey_Report_Updated">
                             <i class="tim-icons icon-single-02"></i>
                             <p>Updated House Hold Report(PSC)</p>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a asp-controller="Family" asp-action="DownloadPSCReportByEnumerator">
+                            <i class="tim-icons icon-puzzle-10"></i>
+                            <p>Family Roaster</p>
                         </a>
                     </li>
                     <li>

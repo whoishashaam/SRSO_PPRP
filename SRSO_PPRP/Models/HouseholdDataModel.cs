@@ -1,4 +1,6 @@
-﻿namespace SRSO_PPRP.Models
+﻿using Microsoft.AspNetCore.Mvc.Rendering;
+
+namespace SRSO_PPRP.Models
 {
     public class HouseholdDataModel
     {
@@ -90,18 +92,41 @@
         public string SCHOOL_GOING_SCORE { get; set; }
    
     }
+    public class PSCReportFilterViewModel
+    {
+        public string SelectedDistrict { get; set; }
+        public string SelectedTehsil { get; set; }
+        public string SelectedUC { get; set; }
+        public string SelectedRV { get; set; }
+        public string SelectedVillage { get; set; }
+        public string SelectedEnumerator { get; set; }
 
+        public List<SelectListItem> Districts { get; set; } = new List<SelectListItem>();
+        public List<SelectListItem> Tehsils { get; set; } = new List<SelectListItem>();
+        public List<SelectListItem> UCs { get; set; } = new List<SelectListItem>();
+        public List<SelectListItem> RVs { get; set; } = new List<SelectListItem>();
+        public List<SelectListItem> Villages { get; set; } = new List<SelectListItem>();
+        public List<SelectListItem> Enumerators { get; set; } = new List<SelectListItem>();
+    }
 
     public class HHMMData
     {
+        public string UUID { get; set; }
         public string HeadName { get; set; }
-        public string Head { get; set; }
         public string ContactNo { get; set; }
         public string EnumeratorName { get; set; }
         public string EnumeratorID { get; set; }
         public DateTime? CreatedDate { get; set; }
-
         public string Address { get; set; }
+        public string Gender { get; set; }
+        public string AgeYears { get; set; }
+
+        public string CNIC { get; set; }
+        public string MaritalStatus { get; set; }
+        public string Education { get; set; }
+        public string Disability { get; set; }
+        public string Occupation { get; set; }
+        public string Head { get; set; } // Added to store the HEAD value
     }
 
 }
