@@ -1,0 +1,93 @@
+﻿@model HouseholdEditViewModel
+
+@{
+    ViewData["Title"] = "Search Household";
+}
+
+<style>
+    body {
+        background-color: #1a2526;
+        color: #b0bec5;
+        font-family: 'Roboto', sans-serif;
+    }
+
+    .center-form {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+    }
+
+    .form-container {
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 500px;
+    }
+
+    h2 {
+        color: #42a5f5;
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        color: #b0bec5;
+    }
+
+    .form-control {
+        background-color: #2d3e40;
+        color: #fff;
+        border: 1px solid #495c5e;
+        border-radius: 5px;
+        padding: 10px;
+    }
+
+        .form-control:focus {
+            background-color: #2d3e40;
+            color: #fff;
+            border-color: #ab47bc;
+            box-shadow: none;
+        }
+
+    .btn-primary {
+        background-color: #ab47bc;
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        width: 100%;
+        margin-top: 20px;
+    }
+
+        .btn-primary:hover {
+            background-color: #8e24aa;
+        }
+
+    .alert-danger {
+        background-color: #d32f2f;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+    }
+</style>
+
+<div class="center-form">
+    <div class="form-container">
+        <h2 class="text-center mb-4">Search Household</h2>
+
+        @if (TempData["Message"] != null)
+        {
+            <div class="alert alert-danger">@TempData["Message"]</div>
+        }
+
+        <form asp-action="SearchHousehold" method="post">
+            <div class="form-group">
+                <label for="uuid">UUID</label>
+                <input type="text" name="uuid" class="form-control" placeholder="Enter UUID" required />
+            </div>
+            <button type="submit" class="btn btn-primary">Search</button>
+        </form>
+    </div>
+</div>

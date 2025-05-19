@@ -1,0 +1,515 @@
+﻿@model HouseholdEditViewModel
+
+@{
+    ViewData["Title"] = "Edit Household";
+}
+
+<style>
+    body {
+        background-color: #1a2526;
+        color: #b0bec5;
+        font-family: 'Roboto', sans-serif;
+    }
+
+    .form-container {
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        margin: 20px auto;
+        max-width: 1200px;
+    }
+
+    .form-section {
+        border: 1px solid #ddd;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 5px;
+    }
+
+        .form-section h3 {
+            margin-bottom: 20px;
+            color: #42a5f5;
+        }
+
+    .form-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+
+        .form-row .col-md-4 {
+            flex: 0 0 33.333%;
+            max-width: 33.333%;
+            padding: 0 10px;
+        }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+        .form-group label {
+            color: #b0bec5;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+    .form-control {
+        background-color: #2d3e40;
+        color: #fff;
+        border: 1px solid #495c5e;
+        border-radius: 5px;
+        padding: 10px;
+        width: 100%;
+    }
+
+        .form-control:focus {
+            background-color: #2d3e40;
+            color: #fff;
+            border-color: #ab47bc;
+            box-shadow: none;
+        }
+
+        .form-control[readonly] {
+            background-color: #3e4e50;
+            opacity: 0.8;
+        }
+
+    .btn-primary {
+        background-color: #ab47bc;
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        width: 100%;
+        margin-top: 20px;
+    }
+
+        .btn-primary:hover {
+            background-color: #8e24aa;
+        }
+
+    .alert-danger {
+        background-color: #d32f2f;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+    }
+</style>
+
+<div class="form-container">
+    <h2 class="text-center mb-4">Edit Household</h2>
+
+    @if (TempData["Message"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Message"]</div>
+    }
+
+    <form id="editHouseholdForm" asp-action="EditHousehold" method="post">
+        <!-- Hidden fields for UUID and PSCId -->
+        <input type="hidden" asp-for="UUID" />
+        <input type="hidden" asp-for="PSCId" />
+
+        <!-- Display UUID and PSC ID (read-only) -->
+        <div class="form-section">
+            <h3>Household Information</h3>
+            <div class="form-row">
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>UUID</label>
+                        <input type="text" class="form-control" value="@Model.UUID" readonly />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>PSC ID</label>
+                        <input type="text" class="form-control" value="@Model.PSCId" readonly />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PSC Survey Score Form -->
+        <div class="form-section">
+            <h3>PSC Survey Score</h3>
+            <div class="form-row">
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>District</label>
+                        <input type="text" class="form-control" value="@Model.PSCSurveyScore.DISTRICT_NAME" readonly />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Tehsil</label>
+                        <input type="text" class="form-control" value="@Model.PSCSurveyScore.TEHSIL_NAME" readonly />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Union Council</label>
+                        <input type="text" class="form-control" value="@Model.PSCSurveyScore.UC_NAME" readonly />
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Revenue Village</label>
+                        <input type="text" class="form-control" value="@Model.PSCSurveyScore.RV_NAME" readonly />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Village</label>
+                        <input type="text" class="form-control" value="@Model.PSCSurveyScore.VILLAGE_NAME" readonly />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Household Members Count Score</label>
+                        <input asp-for="PSCSurveyScore.HOUSEHOLD_MEMBERS_COUNT_SCORE" class="form-control" />
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Room Score</label>
+                        <input asp-for="PSCSurveyScore.ROOM_SCORE" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Toilet Score</label>
+                        <select asp-for="PSCSurveyScore.TOILET_SCORE" asp-items="Model.ToiletScoreOptions" class="form-control">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>TV Score</label>
+                        <select asp-for="PSCSurveyScore.TV_SCORE" asp-items="Model.YesNoOptions" class="form-control">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Refrigerator Score</label>
+                        <select asp-for="PSCSurveyScore.REFRIGERATOR_SCORE" asp-items="Model.YesNoOptions" class="form-control">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Air Conditioner Score</label>
+                        <select asp-for="PSCSurveyScore.AIRCONDITIONER_SCORE" asp-items="Model.YesNoOptions" class="form-control">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Cooking Score</label>
+                        <select asp-for="PSCSurveyScore.COOKING_SCORE" asp-items="Model.YesNoOptions" class="form-control">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Engine Driven Score</label>
+                        <select asp-for="PSCSurveyScore.ENGINE_DRIVEN_SCORE" asp-items="Model.YesNoOptions" class="form-control">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Livestock Score</label>
+                        <input asp-for="PSCSurveyScore.LIVESTOCK_SCORE" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Land Score</label>
+                        <select asp-for="PSCSurveyScore.LAND_SCORE" asp-items="Model.YesNoOptions" class="form-control">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Head Education Score</label>
+                        <input asp-for="PSCSurveyScore.HEAD_EDUCATION_SCORE" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Total PSC Score</label>
+                        <input asp-for="PSCSurveyScore.TOTAL_PSC_SCORE" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Cell Phone</label>
+                        <select asp-for="PSCSurveyScore.CELL_PHONE" asp-items="Model.YesNoOptions" class="form-control">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Electricity</label>
+                        <select asp-for="PSCSurveyScore.ELECTRICITY" asp-items="Model.YesNoOptions" class="form-control">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Source of Drinking Water</label>
+                        <select asp-for="PSCSurveyScore.SOURCE_OF_DRINKING_WATER" asp-items="Model.SourceOfDrinkingWaterOptions" class="form-control">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Latitude</label>
+                        <input asp-for="PSCSurveyScore.LATITUDE" class="form-control" />
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Longitude</label>
+                        <input asp-for="PSCSurveyScore.LONGITUDE" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Location Address</label>
+                        <input asp-for="PSCSurveyScore.LOCATION_ADDRESS" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Buffalo</label>
+                        <input asp-for="PSCSurveyScore.BUFFALO" class="form-control" />
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Cow</label>
+                        <input asp-for="PSCSurveyScore.COW" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Goat</label>
+                        <input asp-for="PSCSurveyScore.GOAT" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Sheep</label>
+                        <input asp-for="PSCSurveyScore.SHEEP" class="form-control" />
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Camel</label>
+                        <input asp-for="PSCSurveyScore.CAMEL" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Donkey</label>
+                        <input asp-for="PSCSurveyScore.DONKEY" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>Mule/Horse</label>
+                        <input asp-for="PSCSurveyScore.MULE_HORSE" class="form-control" />
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="col-md-4 mb-3">
+                    <div class="form-group">
+                        <label>School Going Score</label>
+                        <input asp-for="PSCSurveyScore.SCHOOL_GOING_SCORE" class="form-control" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Family Members Section -->
+        @for (int i = 0; i < Model.FamilyMembers.Count; i++)
+        {
+            <div class="form-section">
+                <h3>Family Member @(i + 1)</h3>
+                <input type="hidden" asp-for="FamilyMembers[i].ID" />
+                <input type="hidden" asp-for="FamilyMembers[i].UUID" />
+                <div class="form-row">
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input asp-for="FamilyMembers[i].Name" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>Contact No</label>
+                            <input asp-for="FamilyMembers[i].ContactNo" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>Gender</label>
+                            <select asp-for="FamilyMembers[i].Gender" asp-items="Model.GenderOptions" class="form-control">
+                                <option value="">-- Select --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>Marital Status</label>
+                            <select asp-for="FamilyMembers[i].MaritalStatus" asp-items="Model.MaritalStatusOptions" class="form-control">
+                                <option value="">-- Select --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>Address</label>
+                            <input asp-for="FamilyMembers[i].Address" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>CNIC Status</label>
+                            <select asp-for="FamilyMembers[i].CNICStatusID" class="form-control">
+                                <option value="1">Available</option>
+                                <option value="2">Not Available</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>Relation</label>
+                            <select asp-for="FamilyMembers[i].Relation" asp-items="Model.RelationOptions" class="form-control">
+                                <option value="">-- Select --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>Head</label>
+                            <select asp-for="FamilyMembers[i].Head" class="form-control head-select">
+                                <option value="1">House Head</option>
+                                <option value="2">Family Member</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>Education</label>
+                            <select asp-for="FamilyMembers[i].Education" asp-items="Model.EducationOptions" class="form-control">
+                                <option value="">-- Select --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>Disability</label>
+                            <select asp-for="FamilyMembers[i].Disability" asp-items="Model.DisabilityOptions" class="form-control">
+                                <option value="">-- Select --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>Occupation</label>
+                            <select asp-for="FamilyMembers[i].Occupation" asp-items="Model.OccupationOptions" class="form-control">
+                                <option value="">-- Select --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>CNIC</label>
+                            <input asp-for="FamilyMembers[i].CNIC" class="form-control" />
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>Age (Years)</label>
+                            <input asp-for="FamilyMembers[i].AgeYears" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label>Religion</label>
+                            <select asp-for="FamilyMembers[i].Religion" asp-items="Model.ReligionOptions" class="form-control">
+                                <option value="">-- Select --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+    </form>
+</div>
+
+<script>
+    document.getElementById('editHouseholdForm').addEventListener('submit', function (event) {
+        // Get all head dropdowns
+        const headSelects = document.querySelectorAll('.head-select');
+        let headCount = 0;
+
+        // Count the number of family members selected as "House Head" (value = "1")
+        headSelects.forEach(select => {
+            if (select.value === "1") {
+                headCount++;
+            }
+        });
+
+        // Validate: There must be exactly one head
+        if (headCount === 0) {
+            event.preventDefault();
+            alert('Please select one family member as the House Head.');
+        } else if (headCount > 1) {
+            event.preventDefault();
+            alert('Only one family member can be the House Head. Please ensure only one member is selected as the House Head.');
+        }
+    });
+</script>

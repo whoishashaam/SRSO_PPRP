@@ -476,7 +476,7 @@ namespace SRSO_PPRP.Controllers
                     foreach (var household in model.Households ?? new List<HouseholdReport>())
                     {
                         _logger.LogInformation("Adding household {Index} to PDF", householdIndex);
-                      //  document.Add(new Paragraph($"Thahim mohla {householdIndex++}"));
+                        //  document.Add(new Paragraph($"Thahim mohla {householdIndex++}"));
                         var head = household.Members?.FirstOrDefault(m => m.IsHead);
                         if (head != null)
                         {
@@ -508,7 +508,7 @@ namespace SRSO_PPRP.Controllers
                     _logger.LogInformation("PDF generation completed. Size: {Size} bytes", pdfBytes.Length);
                     return pdfBytes;
                 }
-            }   
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating PDF for village: {VillageName}", model?.VillageName ?? "Unknown");
@@ -952,7 +952,7 @@ namespace SRSO_PPRP.Controllers
                                     householdDataByUUID[uuid] = new List<HouseholdDataModel>();
                                 }
 
-                                // Add the household member to the list for this UUID
+
                                 householdDataByUUID[uuid].Add(new HouseholdDataModel
                                 {
                                     ID = reader["ID"] != DBNull.Value ? Convert.ToInt32(reader["ID"]) : 0,
@@ -1134,8 +1134,9 @@ namespace SRSO_PPRP.Controllers
 
                             string motorcycleLabel = pscScore.ENGINE_DRIVEN_SCORE switch
                             {
-                                "1" => "Yes",
-                                "0" => "No",
+                                "24" => "Yes",
+                                "7" => "Bike",
+                                "0" => "NO",
                                 _ => "N/A"
                             };
 
@@ -1174,7 +1175,7 @@ namespace SRSO_PPRP.Controllers
 
                             string tvLabel = pscScore.TV_SCORE switch
                             {
-                                "1" => "Yes",
+                                "2" => "Yes",
                                 "0" => "No",
                                 _ => "N/A"
                             };
@@ -1344,24 +1345,23 @@ namespace SRSO_PPRP.Controllers
                                 // Map Education
                                 string educationLabel = member.Education switch
                                 {
-                                    "1" => "Prep",
-                                    "2" => "Class 1",
-                                    "3" => "Class 2",
-                                    "4" => "Class 3",
-                                    "5" => "Class 4",
-                                    "6" => "Class 5",
-                                    "7" => "Class 6",
-                                    "8" => "Class 7",
-                                    "9" => "Class 8",
-                                    "10" => "Class 9",
-                                    "11" => "Class 10",
-                                    "12" => "Class 11",
-                                    "13" => "Class 12",
-                                    "14" => "Bachelor",
-                                    "15" => "Master or Above",
-                                    "16" => "Religious Education",
-                                    "17" => "Not Literate",
-                                    "18" => "Not Applicable",
+                                    "1" => "Prep/Class 1",
+                                    "2" => "Class 2",
+                                    "3" => "Class 3",
+                                    "4" => "Class 4",
+                                    "5" => "Class 5",
+                                    "6" => "Class 6",
+                                    "7" => "Class 7",
+                                    "8" => "Class 8",
+                                    "9" => "Class 9",
+                                    "10" => "Class 10",
+                                    "11" => "Class 11",
+                                    "12" => "Class 12",
+                                    "13" => "Bachelor",
+                                    "14" => "Master or Above",
+                                    "15" => "Religious Education",
+                                    "16" => "Not Literate",
+                                    "17" => "Not Applicable",
                                     _ => "N/A"
                                 };
 
@@ -1442,8 +1442,652 @@ namespace SRSO_PPRP.Controllers
                 return RedirectToAction("DownloadPSCReportByEnumerator");
             }
         }
+
+
+
+
+
+
+
+        [HttpGet]
+        public IActionResult SearchHousehold()
+        {
+            if (string.IsNullOrEmpty(HttpContext.Session.GetString("User")))
+            {
+                return RedirectToAction("Login", "Main");
+            }
+
+            return View(new HouseholdEditViewModel());
+        }
+
+        [HttpPost]
+        public IActionResult SearchHousehold(string uuid)
+        {
+            if (string.IsNullOrEmpty(HttpContext.Session.GetString("User")))
+            {
+                return RedirectToAction("Login", "Main");
+            }
+
+            if (string.IsNullOrEmpty(uuid))
+            {
+                TempData["Message"] = "Please enter a UUID to search.";
+                return RedirectToAction("SearchHousehold");
+            }
+
+            // Fetch PSC survey score and household data for the UUID
+            string connectionString = _configuration.GetConnectionString("DefaultConnection");
+            var model = new HouseholdEditViewModel { UUID = uuid };
+
+            try
+            {
+                using (OracleConnection conn = new OracleConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Fetch PSC survey score
+                    string pscQuery = @"
+                SELECT 
+                    pss.ID,
+                    pss.UUID,
+                    cv.DISTRICT_NAME,
+                    cv.TEHSIL_NAME,
+                    cv.UC_NAME,
+                    cv.REVEUNE_VILLAGE_NAME AS RV_NAME,
+                    cv.VILLAGE_NAME,
+                    pss.HOUSEHOLD_MEMBERS_COUNT_SCORE,
+                    pss.ROOM_SCORE,
+                    pss.TOILET_SCORE,
+                    pss.TV_SCORE,
+                    pss.REFRIGERATOR_SCORE,
+                    pss.AIRCONDITIONER_SCORE,
+                    pss.COOKING_SCORE,
+                    pss.ENGINE_DRIVEN_SCORE,
+                    pss.LIVESTOCK_SCORE,
+                    pss.LAND_SCORE,
+                    pss.HEAD_EDUCATION_SCORE,
+                    pss.TOTAL_PSC_SCORE,
+                    pss.CREATED_DATE,
+                    pss.CELL_PHONE,
+                    pss.ELECTRICITY,
+                    pss.SOURCE_OF_DRINKING_WATER,
+                    pss.LATITUDE,
+                    pss.LONGITUDE,
+                    pss.LOCATION_ADDRESS,
+                    pss.BUFFALO,
+                    pss.COW,
+                    pss.GOAT,
+                    pss.SHEEP,
+                    pss.CAMEL,
+                    pss.DONKEY,
+                    pss.MULE_HORSE,
+                    pss.VILLAGE_ID,
+                    pss.SCHOOL_GOING_SCORE
+                FROM 
+                    NRSP.PSC_SERVEY_SCORE pss
+                LEFT JOIN NRSP.PPRP_SERVAY_CENSUS_DATA cv 
+                    ON pss.VILLAGE_ID = cv.VILLAGENAME_ID
+                WHERE pss.UUID = :uuid";
+
+                    using (OracleCommand cmd = new OracleCommand(pscQuery, conn))
+                    {
+                        cmd.Parameters.Add(":uuid", OracleDbType.Varchar2).Value = uuid;
+                        using (OracleDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                model.PSCSurveyScore = new PSCServeyScore
+                                {
+                                    ID = Convert.ToInt32(reader["ID"]),
+                                    UUID = reader["UUID"]?.ToString(),
+                                    DISTRICT_NAME = reader["DISTRICT_NAME"]?.ToString(),
+                                    TEHSIL_NAME = reader["TEHSIL_NAME"]?.ToString(),
+                                    UC_NAME = reader["UC_NAME"]?.ToString(),
+                                    RV_NAME = reader["RV_NAME"]?.ToString(),
+                                    VILLAGE_NAME = reader["VILLAGE_NAME"]?.ToString(),
+                                    HOUSEHOLD_MEMBERS_COUNT_SCORE = reader["HOUSEHOLD_MEMBERS_COUNT_SCORE"]?.ToString(),
+                                    ROOM_SCORE = reader["ROOM_SCORE"]?.ToString(),
+                                    TOILET_SCORE = reader["TOILET_SCORE"]?.ToString(),
+                                    TV_SCORE = reader["TV_SCORE"]?.ToString(),
+                                    REFRIGERATOR_SCORE = reader["REFRIGERATOR_SCORE"]?.ToString(),
+                                    AIRCONDITIONER_SCORE = reader["AIRCONDITIONER_SCORE"]?.ToString(),
+                                    COOKING_SCORE = reader["COOKING_SCORE"]?.ToString(),
+                                    ENGINE_DRIVEN_SCORE = reader["ENGINE_DRIVEN_SCORE"]?.ToString(),
+                                    LIVESTOCK_SCORE = reader["LIVESTOCK_SCORE"]?.ToString(),
+                                    LAND_SCORE = reader["LAND_SCORE"]?.ToString(),
+                                    HEAD_EDUCATION_SCORE = reader["HEAD_EDUCATION_SCORE"]?.ToString(),
+                                    TOTAL_PSC_SCORE = reader["TOTAL_PSC_SCORE"]?.ToString(),
+                                    CREATED_DATE = Convert.ToDateTime(reader["CREATED_DATE"]),
+                                    CELL_PHONE = reader["CELL_PHONE"]?.ToString(),
+                                    ELECTRICITY = reader["ELECTRICITY"]?.ToString(),
+                                    SOURCE_OF_DRINKING_WATER = reader["SOURCE_OF_DRINKING_WATER"]?.ToString(),
+                                    LATITUDE = reader["LATITUDE"]?.ToString(),
+                                    LONGITUDE = reader["LONGITUDE"]?.ToString(),
+                                    LOCATION_ADDRESS = reader["LOCATION_ADDRESS"]?.ToString(),
+                                    BUFFALO = reader["BUFFALO"]?.ToString(),
+                                    COW = reader["COW"]?.ToString(),
+                                    GOAT = reader["GOAT"]?.ToString(),
+                                    SHEEP = reader["SHEEP"]?.ToString(),
+                                    CAMEL = reader["CAMEL"]?.ToString(),
+                                    DONKEY = reader["DONKEY"]?.ToString(),
+                                    MULE_HORSE = reader["MULE_HORSE"]?.ToString(),
+                                    VILLAGE_ID = reader["VILLAGE_ID"]?.ToString(),
+                                    SCHOOL_GOING_SCORE = reader["SCHOOL_GOING_SCORE"]?.ToString()
+                                };
+                                model.PSCId = model.PSCSurveyScore.ID;
+                            }
+                        }
+                    }
+
+                    if (model.PSCSurveyScore == null)
+                    {
+                        TempData["Message"] = $"No PSC survey data found for UUID: {uuid}.";
+                        return RedirectToAction("SearchHousehold");
+                    }
+
+                    // Fetch household data
+                    string hhQuery = @"
+                SELECT 
+                    hh.ID,
+                    hh.UUID,
+                    hh.NAME,
+                    hh.CONTACT_NO,
+                    hh.GENDER,
+                    hh.MARITAL_STATUS,
+                    hh.ADDRESS,
+                    hh.CNIC_STATUS_ID,
+                    hh.RELATION,
+                    hh.HEAD,
+                    hh.EDUCATION,
+                    hh.DISABILITY,
+                    hh.OCCUPATION,
+                    hh.CNIC,
+                    hh.AGE_YEARS,
+                    hh.STATUS,
+                    hh.UPLOAD_STATUS,
+                    hh.ENUMERATOR_NAME,
+                    hh.ENUMERATOR_ID,
+                    hh.CREATED_DATE,
+                    hh.RELIGION
+                FROM NRSP.HH_MM_DATA hh
+                WHERE hh.UUID = :uuid
+                ORDER BY hh.HEAD DESC, hh.NAME";
+
+                    using (OracleCommand cmd = new OracleCommand(hhQuery, conn))
+                    {
+                        cmd.Parameters.Add(":uuid", OracleDbType.Varchar2).Value = uuid;
+                        using (OracleDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                model.FamilyMembers.Add(new HouseholdDataModel
+                                {
+                                    ID = Convert.ToInt32(reader["ID"]),
+                                    UUID = reader["UUID"]?.ToString(),
+                                    Name = reader["NAME"]?.ToString(),
+                                    ContactNo = reader["CONTACT_NO"]?.ToString(),
+                                    Gender = reader["GENDER"]?.ToString(),
+                                    MaritalStatus = reader["MARITAL_STATUS"]?.ToString(),
+                                    Address = reader["ADDRESS"]?.ToString(),
+                                    CNICStatusID = reader["CNIC_STATUS_ID"]?.ToString(),
+                                    Relation = reader["RELATION"]?.ToString(),
+                                    Head = reader["HEAD"]?.ToString(),
+                                    Education = reader["EDUCATION"]?.ToString(),
+                                    Disability = reader["DISABILITY"]?.ToString(),
+                                    Occupation = reader["OCCUPATION"]?.ToString(),
+                                    CNIC = reader["CNIC"]?.ToString(),
+                                    AgeYears = reader["AGE_YEARS"]?.ToString(),
+                                    Status = reader["STATUS"] != DBNull.Value ? Convert.ToInt32(reader["STATUS"]) : 0,
+                                    UploadStatus = reader["UPLOAD_STATUS"] != DBNull.Value ? Convert.ToInt32(reader["UPLOAD_STATUS"]) : 0,
+                                    EnumeratorName = reader["ENUMERATOR_NAME"]?.ToString(),
+                                    EnumeratorID = reader["ENUMERATOR_ID"]?.ToString(),
+                                    CreatedDate = reader["CREATED_DATE"] != DBNull.Value ? Convert.ToDateTime(reader["CREATED_DATE"]) : (DateTime?)null,
+                                    Religion = reader["RELIGION"]?.ToString()
+                                });
+                            }
+                        }
+                    }
+
+                    if (!model.FamilyMembers.Any())
+                    {
+                        TempData["Message"] = $"No household members found for UUID: {uuid}.";
+                        return RedirectToAction("SearchHousehold");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error searching household for UUID: {uuid}");
+                TempData["Message"] = "An error occurred while searching for the household. Please try again.";
+                return RedirectToAction("SearchHousehold");
+            }
+
+            return View("EditHousehold", model);
+        }
+
+
+
+
+        [HttpGet]
+        public IActionResult EditHousehold(string uuid)
+        {
+            if (string.IsNullOrEmpty(HttpContext.Session.GetString("User")))
+            {
+                return RedirectToAction("Login", "Main");
+            }
+
+            HouseholdEditViewModel model = new HouseholdEditViewModel();
+            model.UUID = uuid;
+
+            string connectionString = _configuration.GetConnectionString("DefaultConnection");
+            try
+            {
+                using (OracleConnection conn = new OracleConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Fetch PSC Survey Score
+                    string pscQuery = @"
+                SELECT 
+                    ID,
+                    HOUSEHOLD_MEMBERS_COUNT_SCORE,
+                    ROOM_SCORE,
+                    TOILET_SCORE,
+                    TV_SCORE,
+                    REFRIGERATOR_SCORE,
+                    AIRCONDITIONER_SCORE,
+                    COOKING_SCORE,
+                    ENGINE_DRIVEN_SCORE,
+                    LIVESTOCK_SCORE,
+                    LAND_SCORE,
+                    HEAD_EDUCATION_SCORE,
+                    TOTAL_PSC_SCORE,
+                    CELL_PHONE,
+                    ELECTRICITY,
+                    SOURCE_OF_DRINKING_WATER,
+                    LATITUDE,
+                    LONGITUDE,
+                    LOCATION_ADDRESS,
+                    BUFFALO,
+                    COW,
+                    GOAT,
+                    SHEEP,
+                    CAMEL,
+                    DONKEY,
+                    MULE_HORSE,
+                    SCHOOL_GOING_SCORE,
+                    DISTRICT_NAME,
+                    TEHSIL_NAME,
+                    UC_NAME,
+                    RV_NAME,
+                    VILLAGE_NAME
+                FROM NRSP.PSC_SERVEY_SCORE
+                WHERE UUID = :uuid";
+
+                    using (OracleCommand cmd = new OracleCommand(pscQuery, conn))
+                    {
+                        cmd.Parameters.Add(":uuid", OracleDbType.Varchar2).Value = uuid;
+                        using (OracleDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                
+                                model.PSCSurveyScore = new PSCServeyScore
+                                {
+                                    ID = Convert.ToInt32(reader["ID"]),
+                                    DISTRICT_NAME = reader["DISTRICT_NAME"].ToString(),
+                                    TEHSIL_NAME = reader["TEHSIL_NAME"].ToString(),
+                                    UC_NAME = reader["UC_NAME"].ToString(),
+                                    RV_NAME = reader["RV_NAME"].ToString(),
+                                    VILLAGE_NAME = reader["VILLAGE_NAME"].ToString(),
+                                    HOUSEHOLD_MEMBERS_COUNT_SCORE = reader["HOUSEHOLD_MEMBERS_COUNT_SCORE"].ToString(),
+                                    ROOM_SCORE = reader["ROOM_SCORE"].ToString(),
+                                    TOILET_SCORE = reader["TOILET_SCORE"].ToString(),
+                                    TV_SCORE = reader["TV_SCORE"].ToString(),
+                                    REFRIGERATOR_SCORE = reader["REFRIGERATOR_SCORE"].ToString(),
+                                    AIRCONDITIONER_SCORE = reader["AIRCONDITIONER_SCORE"].ToString(),
+                                    COOKING_SCORE = reader["COOKING_SCORE"].ToString(),
+                                    ENGINE_DRIVEN_SCORE = reader["ENGINE_DRIVEN_SCORE"].ToString(),
+                                    LIVESTOCK_SCORE = reader["LIVESTOCK_SCORE"].ToString(),
+                                    LAND_SCORE = reader["LAND_SCORE"].ToString(),
+                                    HEAD_EDUCATION_SCORE = reader["HEAD_EDUCATION_SCORE"].ToString(),
+                                    TOTAL_PSC_SCORE = reader["TOTAL_PSC_SCORE"].ToString(),
+                                    CELL_PHONE = reader["CELL_PHONE"].ToString(),
+                                    ELECTRICITY = reader["ELECTRICITY"].ToString(),
+                                    SOURCE_OF_DRINKING_WATER = reader["SOURCE_OF_DRINKING_WATER"].ToString(),
+                                    LATITUDE = reader["LATITUDE"].ToString(),
+                                    LONGITUDE = reader["LONGITUDE"].ToString(),
+                                    LOCATION_ADDRESS = reader["LOCATION_ADDRESS"].ToString(),
+                                    BUFFALO = reader["BUFFALO"].ToString(),
+                                    COW = reader["COW"].ToString(),
+                                    GOAT = reader["GOAT"].ToString(),
+                                    SHEEP = reader["SHEEP"].ToString(),
+                                    CAMEL = reader["CAMEL"].ToString(),
+                                    DONKEY = reader["DONKEY"].ToString(),
+                                    MULE_HORSE = reader["MULE_HORSE"].ToString(),
+                                    SCHOOL_GOING_SCORE = reader["SCHOOL_GOING_SCORE"].ToString()
+                                };
+                            }
+                            else
+                            {
+                                TempData["Message"] = "No household found with the provided UUID.";
+                                return RedirectToAction("SearchHousehold");
+                            }
+                        }
+                    }
+
+                    // Fetch Family Members
+                    string hhQuery = @"
+                SELECT 
+                    ID,
+                    UUID,
+                    NAME,
+                    CONTACT_NO,
+                    GENDER,
+                    MARITAL_STATUS,
+                    ADDRESS,
+                    CNIC_STATUS_ID,
+                    RELATION,
+                    HEAD,
+                    EDUCATION,
+                    DISABILITY,
+                    OCCUPATION,
+                    CNIC,
+                    AGE_YEARS,
+                    RELIGION
+                FROM NRSP.HH_MM_DATA
+                WHERE UUID = :uuid
+                ORDER BY HEAD DESC, NAME";
+
+                    using (OracleCommand cmd = new OracleCommand(hhQuery, conn))
+                    {
+                        cmd.Parameters.Add(":uuid", OracleDbType.Varchar2).Value = uuid;
+                        using (OracleDataReader reader = cmd.ExecuteReader())
+                        {
+                            model.FamilyMembers = new List<HouseholdDataModel>();
+                            while (reader.Read())
+                            {
+                                model.FamilyMembers.Add(new HouseholdDataModel
+                                {
+                                    ID = Convert.ToInt32(reader["ID"]),
+                                    UUID = reader["UUID"].ToString(),
+                                    Name = reader["NAME"].ToString(),
+                                    ContactNo = reader["CONTACT_NO"].ToString(),
+                                    Gender = reader["GENDER"].ToString(),
+                                    MaritalStatus = reader["MARITAL_STATUS"].ToString(),
+                                    Address = reader["ADDRESS"].ToString(),
+                                    CNICStatusID = reader["CNIC_STATUS_ID"].ToString(),
+                                    Relation = reader["RELATION"].ToString(),
+                                    Head = reader["HEAD"].ToString(),
+                                    Education = reader["EDUCATION"].ToString(),
+                                    Disability = reader["DISABILITY"].ToString(),
+                                    Occupation = reader["OCCUPATION"].ToString(),
+                                    CNIC = reader["CNIC"].ToString(),
+                                    AgeYears = reader["AGE_YEARS"].ToString(),
+                                    Religion = reader["RELIGION"].ToString()
+                                });
+                            }
+                        }
+                    }
+
+                    // Populate dropdown options
+                    model.GenderOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "Male", Text = "Male" },
+                new SelectListItem { Value = "Female", Text = "Female" },
+                new SelectListItem { Value = "Other", Text = "Other" }
+            };
+
+                    model.MaritalStatusOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "Single", Text = "Single" },
+                new SelectListItem { Value = "Married", Text = "Married" },
+                new SelectListItem { Value = "Divorced", Text = "Divorced" },
+                new SelectListItem { Value = "Widowed", Text = "Widowed" }
+            };
+
+                    model.RelationOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "Head", Text = "Head" },
+                new SelectListItem { Value = "Spouse", Text = "Spouse" },
+                new SelectListItem { Value = "Child", Text = "Child" },
+                new SelectListItem { Value = "Parent", Text = "Parent" },
+                new SelectListItem { Value = "Sibling", Text = "Sibling" },
+                new SelectListItem { Value = "Other", Text = "Other" }
+            };
+
+                    model.EducationOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "None", Text = "None" },
+                new SelectListItem { Value = "Primary", Text = "Primary" },
+                new SelectListItem { Value = "Secondary", Text = "Secondary" },
+                new SelectListItem { Value = "Higher", Text = "Higher" }
+            };
+
+                    model.DisabilityOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "None", Text = "None" },
+                new SelectListItem { Value = "Physical", Text = "Physical" },
+                new SelectListItem { Value = "Mental", Text = "Mental" }
+            };
+
+                    model.OccupationOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "Unemployed", Text = "Unemployed" },
+                new SelectListItem { Value = "Farmer", Text = "Farmer" },
+                new SelectListItem { Value = "Laborer", Text = "Laborer" },
+                new SelectListItem { Value = "Professional", Text = "Professional" }
+            };
+
+                    model.ReligionOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "Islam", Text = "Islam" },
+                new SelectListItem { Value = "Christianity", Text = "Christianity" },
+                new SelectListItem { Value = "Hinduism", Text = "Hinduism" },
+                new SelectListItem { Value = "Other", Text = "Other" }
+            };
+
+                    model.YesNoOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "Yes", Text = "Yes" },
+                new SelectListItem { Value = "No", Text = "No" }
+            };
+
+                    model.ToiletScoreOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "0", Text = "No Toilet" },
+                new SelectListItem { Value = "1", Text = "Shared Toilet" },
+                new SelectListItem { Value = "2", Text = "Private Toilet" }
+            };
+
+                    model.SourceOfDrinkingWaterOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "Tap", Text = "Tap" },
+                new SelectListItem { Value = "Well", Text = "Well" },
+                new SelectListItem { Value = "Bottled", Text = "Bottled" },
+                new SelectListItem { Value = "Other", Text = "Other" }
+            };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error fetching household for UUID: {uuid}");
+                TempData["Message"] = "An error occurred while fetching the household. Please try again.";
+                return RedirectToAction("SearchHousehold");
+            }
+
+            return View(model);
+        }
+
+
+
+
+        [HttpPost]
+        public IActionResult EditHousehold(HouseholdEditViewModel model)
+        {
+            if (string.IsNullOrEmpty(HttpContext.Session.GetString("User")))
+            {
+                return RedirectToAction("Login", "Main");
+            }
+
+            // Validate that there is exactly one household head
+            var headCount = model.FamilyMembers.Count(m => m.Head == "1");
+            if (headCount != 1)
+            {
+                TempData["Message"] = "There must be exactly one household head.";
+                return View(model);
+            }
+
+            string connectionString = _configuration.GetConnectionString("DefaultConnection");
+            try
+            {
+                using (OracleConnection conn = new OracleConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Update PSC_SERVEY_SCORE
+                    string pscUpdateQuery = @"
+                UPDATE NRSP.PSC_SERVEY_SCORE
+                SET 
+                    HOUSEHOLD_MEMBERS_COUNT_SCORE = :householdMembersCountScore,
+                    ROOM_SCORE = :roomScore,
+                    TOILET_SCORE = :toiletScore,
+                    TV_SCORE = :tvScore,
+                    REFRIGERATOR_SCORE = :refrigeratorScore,
+                    AIRCONDITIONER_SCORE = :airconditionerScore,
+                    COOKING_SCORE = :cookingScore,
+                    ENGINE_DRIVEN_SCORE = :engineDrivenScore,
+                    LIVESTOCK_SCORE = :livestockScore,
+                    LAND_SCORE = :landScore,
+                    HEAD_EDUCATION_SCORE = :headEducationScore,
+                    TOTAL_PSC_SCORE = :totalPscScore,
+                    CELL_PHONE = :cellPhone,
+                    ELECTRICITY = :electricity,
+                    SOURCE_OF_DRINKING_WATER = :sourceOfDrinkingWater,
+                    LATITUDE = :latitude,
+                    LONGITUDE = :longitude,
+                    LOCATION_ADDRESS = :locationAddress,
+                    BUFFALO = :buffalo,
+                    COW = :cow,
+                    GOAT = :goat,
+                    SHEEP = :sheep,
+                    CAMEL = :camel,
+                    DONKEY = :donkey,
+                    MULE_HORSE = :muleHorse,
+                    SCHOOL_GOING_SCORE = :schoolGoingScore
+                WHERE ID = :id";
+
+                    using (OracleCommand cmd = new OracleCommand(pscUpdateQuery, conn))
+                    {
+                        cmd.Parameters.Add(":householdMembersCountScore", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.HOUSEHOLD_MEMBERS_COUNT_SCORE ?? DBNull.Value;
+                        cmd.Parameters.Add(":roomScore", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.ROOM_SCORE ?? DBNull.Value;
+                        cmd.Parameters.Add(":toiletScore", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.TOILET_SCORE ?? DBNull.Value;
+                        cmd.Parameters.Add(":tvScore", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.TV_SCORE ?? DBNull.Value;
+                        cmd.Parameters.Add(":refrigeratorScore", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.REFRIGERATOR_SCORE ?? DBNull.Value;
+                        cmd.Parameters.Add(":airconditionerScore", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.AIRCONDITIONER_SCORE ?? DBNull.Value;
+                        cmd.Parameters.Add(":cookingScore", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.COOKING_SCORE ?? DBNull.Value;
+                        cmd.Parameters.Add(":engineDrivenScore", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.ENGINE_DRIVEN_SCORE ?? DBNull.Value;
+                        cmd.Parameters.Add(":livestockScore", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.LIVESTOCK_SCORE ?? DBNull.Value;
+                        cmd.Parameters.Add(":landScore", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.LAND_SCORE ?? DBNull.Value;
+                        cmd.Parameters.Add(":headEducationScore", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.HEAD_EDUCATION_SCORE ?? DBNull.Value;
+                        cmd.Parameters.Add(":totalPscScore", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.TOTAL_PSC_SCORE ?? DBNull.Value;
+                        cmd.Parameters.Add(":cellPhone", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.CELL_PHONE ?? DBNull.Value;
+                        cmd.Parameters.Add(":electricity", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.ELECTRICITY ?? DBNull.Value;
+                        cmd.Parameters.Add(":sourceOfDrinkingWater", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.SOURCE_OF_DRINKING_WATER ?? DBNull.Value;
+                        cmd.Parameters.Add(":latitude", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.LATITUDE ?? DBNull.Value;
+                        cmd.Parameters.Add(":longitude", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.LONGITUDE ?? DBNull.Value;
+                        cmd.Parameters.Add(":locationAddress", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.LOCATION_ADDRESS ?? DBNull.Value;
+                        cmd.Parameters.Add(":buffalo", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.BUFFALO ?? DBNull.Value;
+                        cmd.Parameters.Add(":cow", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.COW ?? DBNull.Value;
+                        cmd.Parameters.Add(":goat", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.GOAT ?? DBNull.Value;
+                        cmd.Parameters.Add(":sheep", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.SHEEP ?? DBNull.Value;
+                        cmd.Parameters.Add(":camel", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.CAMEL ?? DBNull.Value;
+                        cmd.Parameters.Add(":donkey", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.DONKEY ?? DBNull.Value;
+                        cmd.Parameters.Add(":muleHorse", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.MULE_HORSE ?? DBNull.Value;
+                        cmd.Parameters.Add(":schoolGoingScore", OracleDbType.Varchar2).Value = (object)model.PSCSurveyScore.SCHOOL_GOING_SCORE ?? DBNull.Value;
+                        cmd.Parameters.Add(":id", OracleDbType.Int32).Value = model.PSCId;
+
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Update HH_MM_DATA for each family member
+                    string hhUpdateQuery = @"
+                UPDATE NRSP.HH_MM_DATA
+                SET 
+                    NAME = :name,
+                    CONTACT_NO = :contactNo,
+                    GENDER = :gender,
+                    MARITAL_STATUS = :maritalStatus,
+                    ADDRESS = :address,
+                    CNIC_STATUS_ID = :cnicStatusId,
+                    RELATION = :relation,
+                    HEAD = :head,
+                    EDUCATION = :education,
+                    DISABILITY = :disability,
+                    OCCUPATION = :occupation,
+                    CNIC = :cnic,
+                    AGE_YEARS = :ageYears,
+                    RELIGION = :religion
+                WHERE ID = :id";
+
+                    // Find the new head
+                    var newHead = model.FamilyMembers.FirstOrDefault(m => m.Head == "1");
+                    if (newHead == null)
+                    {
+                        TempData["Message"] = "No household head selected.";
+                        return View(model);
+                    }
+
+                    // Update all family members
+                    foreach (var member in model.FamilyMembers)
+                    {
+                        // Set Head value: "1" for the head, "2" for others
+                        string headValue = member.ID == newHead.ID ? "1" : "2";
+
+                        using (OracleCommand cmd = new OracleCommand(hhUpdateQuery, conn))
+                        {
+                            cmd.Parameters.Add(":name", OracleDbType.Varchar2).Value = (object)member.Name ?? DBNull.Value;
+                            cmd.Parameters.Add(":contactNo", OracleDbType.Varchar2).Value = (object)member.ContactNo ?? DBNull.Value;
+                            cmd.Parameters.Add(":gender", OracleDbType.Varchar2).Value = (object)member.Gender ?? DBNull.Value;
+                            cmd.Parameters.Add(":maritalStatus", OracleDbType.Varchar2).Value = (object)member.MaritalStatus ?? DBNull.Value;
+                            cmd.Parameters.Add(":address", OracleDbType.Varchar2).Value = (object)member.Address ?? DBNull.Value;
+                            cmd.Parameters.Add(":cnicStatusId", OracleDbType.Varchar2).Value = (object)member.CNICStatusID ?? DBNull.Value;
+                            cmd.Parameters.Add(":relation", OracleDbType.Varchar2).Value = (object)member.Relation ?? DBNull.Value;
+                            cmd.Parameters.Add(":head", OracleDbType.Varchar2).Value = headValue;
+                            cmd.Parameters.Add(":education", OracleDbType.Varchar2).Value = (object)member.Education ?? DBNull.Value;
+                            cmd.Parameters.Add(":disability", OracleDbType.Varchar2).Value = (object)member.Disability ?? DBNull.Value;
+                            cmd.Parameters.Add(":occupation", OracleDbType.Varchar2).Value = (object)member.Occupation ?? DBNull.Value;
+                            cmd.Parameters.Add(":cnic", OracleDbType.Varchar2).Value = (object)member.CNIC ?? DBNull.Value;
+                            cmd.Parameters.Add(":ageYears", OracleDbType.Varchar2).Value = (object)member.AgeYears ?? DBNull.Value;
+                            cmd.Parameters.Add(":religion", OracleDbType.Varchar2).Value = (object)member.Religion ?? DBNull.Value;
+                            cmd.Parameters.Add(":id", OracleDbType.Int32).Value = member.ID;
+
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+
+                TempData["Message"] = "Household data updated successfully.";
+                return RedirectToAction("SearchHousehold");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error updating household for UUID: {model.UUID}");
+                TempData["Message"] = "An error occurred while updating the household. Please try again.";
+                return View(model);
+            }
+        }
+
+
+
+
+
+
+
     }
 
-        
+
+
+
+
 
 }
