@@ -1091,8 +1091,8 @@ namespace SRSO_PPRP.Controllers
                             // Map numeric values to their corresponding labels
                             string toiletLabel = pscScore.TOILET_SCORE switch
                             {
-                                "1" => "Dry Raised or Dry Pit Latrine",
-                                "2" => "Dry Raised",
+                                "1" => "Flush ",
+                                "2" => "Dry Raised/pit Latrine",
                                 "3" => "No Toilet",
                                 _ => "N/A"
                             };
@@ -1104,15 +1104,45 @@ namespace SRSO_PPRP.Controllers
                                 _ => "N/A"
                             };
 
-                            string freezerLabel = "No"; // Hardcoded as per the original code
+                            string freezerLabel = pscScore.Freezer_Score switch
+                            {
+                                "1" => "Yes",
+                                "0" => "No",
+                                _ => "N/A"
+                            };
 
-                            string washingMachineLabel = "No"; // Hardcoded as per the original code
+                            string washingMachineLabel = pscScore.WashingMachine_Score switch
+                            {
+                                "1" => "Yes",
+                                "0" => "No",
+                                _ => "N/A"
+                            };
 
-                            string geyserLabel = "No"; // Hardcoded as per the original code
+                            string geyserLabel = pscScore.Gyser_Score switch
+                            {
+                                "1" => "Yes",
+                                "0" => "No",
+                                _ => "N/A"
+                            };
 
-                            string heaterLabel = "No"; // Hardcoded as per the original code
 
-                            string airCoolerLabel = "No"; // Hardcoded as per the original code
+                            string heaterLabel = pscScore.Heater_Score switch
+                            {
+                                "1" => "Yes",
+                                "0" => "No",
+                                _ => "N/A"
+                            };
+
+                            string airCoolerLabel = pscScore.AirCooler_Score switch
+                            {
+                                "1" => "Yes",
+                                "0" => "No",
+                                _ => "N/A"
+                            };
+
+
+
+                          
 
                             string airConditionerLabel = pscScore.AIRCONDITIONER_SCORE switch
                             {
@@ -1128,21 +1158,46 @@ namespace SRSO_PPRP.Controllers
                                 _ => "N/A"
                             };
 
-                            string cookingRangeLabel = "No"; // Hardcoded as per the original code
 
-                            string microwaveOvenLabel = "No"; // Hardcoded as per the original code
+                            string cookingRangeLabel = pscScore.COOKINGRange_Score switch
+                            {
+                                "1" => "Yes",
+                                "0" => "No",
+                                _ => "N/A"
+                            };
+
+
+                            string microwaveOvenLabel = pscScore.Microwave_Score switch
+                            {
+                                "1" => "Yes",
+                                "0" => "No",
+                                _ => "N/A"
+                            };
+
 
                             string motorcycleLabel = pscScore.ENGINE_DRIVEN_SCORE switch
                             {
                                 "24" => "Yes",
-                                "7" => "Bike",
+                                "7" => "yes",
                                 "0" => "NO",
                                 _ => "N/A"
                             };
 
-                            string tractorLabel = "No"; // Hardcoded as per the original code
+                            string tractorLabel = pscScore.ENGINE_DRIVEN_SCORE switch
+                            {
+                                "24" => "Yes",
+                                "7" => "NO",
+                                "0" => "NO",
+                                _ => "N/A"
+                            };// Hardcoded as per the original code
 
-                            string carLabel = "No"; // Hardcoded as per the original code
+                            string carLabel = pscScore.ENGINE_DRIVEN_SCORE switch
+                            {
+                                "24" => "Yes",
+                                "7" => "NO",
+                                "0" => "NO",
+                                _ => "N/A"
+                            }; // Hardcoded as per the original code
 
                             string electricityLabel = pscScore.ELECTRICITY switch
                             {

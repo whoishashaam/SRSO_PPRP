@@ -66,6 +66,14 @@ namespace SRSO_PPRP.Models
         public string? TOILET_SCORE { get; set; }
         public string? TV_SCORE { get; set; }
         public string? REFRIGERATOR_SCORE { get; set; }
+        public string? COOKINGRange_Score { get; set; }
+
+        public string? Microwave_Score { get; set; }
+        public string? AirCooler_Score { get; set; }
+        public string? Heater_Score { get; set; }
+        public string? Gyser_Score { get; set; }
+        public string? WashingMachine_Score { get; set; }
+        public string? Freezer_Score { get; set; }
         public string? AIRCONDITIONER_SCORE { get; set; }
         public string? COOKING_SCORE { get; set; }
         public string ENGINE_DRIVEN_SCORE { get; set; }
