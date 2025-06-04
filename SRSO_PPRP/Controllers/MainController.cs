@@ -30,6 +30,11 @@ namespace SRSO_PPRP.Controllers
         {
             return View();
         }
+        public IActionResult Logout()
+        {
+            HttpContext.Session.Clear();
+            return RedirectToAction("Login", "Main");
+        }
 
         [HttpPost]
         public IActionResult Login(string username, string password)
@@ -89,48 +94,59 @@ namespace SRSO_PPRP.Controllers
         }
 
         [HttpPost]
-        public IActionResult UpdateUser(string UserID, string UserName, string Password, string DistrictID)
+public IActionResult UpdateUser(string UserID, string UserName, string Password, string DistrictID)
+{
+    if (string.IsNullOrEmpty(HttpContext.Session.GetString("User")))
+    {
+        return RedirectToAction("Login", "Main");
+    }
+
+    string connectionString = _configuration.GetConnectionString("DefaultConnection");
+
+    using (OracleConnection con = new OracleConnection(connectionString))
+    {
+        con.Open();
+
+        // Get max ID and increment
+        int newId = 1;
+        using (OracleCommand cmdMax = new OracleCommand("SELECT NVL(MAX(TO_NUMBER(ID)), 0) + 1 FROM NRSP.PHSIP_ASSESSMENT", con))
         {
-            if (string.IsNullOrEmpty(HttpContext.Session.GetString("User")))
-            {
-                return RedirectToAction("Login", "Main");
-            }
-
-            string connectionString = _configuration.GetConnectionString("DefaultConnection");
-
-            using (OracleConnection con = new OracleConnection(connectionString))
-            {
-                con.Open();
-
-                // Get max ID and increment
-                int newId = 1;
-                using (OracleCommand cmdMax = new OracleCommand("SELECT NVL(MAX(TO_NUMBER(ID)), 0) + 1 FROM NRSP.PHSIP_ASSESSMENT", con))
-                {
-                    newId = Convert.ToInt32(cmdMax.ExecuteScalar());
-                }
-
-                // Insert new user with manually entered USER_ID
-                using (OracleCommand cmdInsert = new OracleCommand("INSERT INTO NRSP.PHSIP_ASSESSMENT (ID, USER_ID, USER_NAME, PWD, DISTRICT_ID) VALUES (:id, :userid, :uname, :pwd, :district)", con))
-                {
-                    cmdInsert.Parameters.Add(":id", OracleDbType.Varchar2).Value = newId.ToString(); // Auto-incremented ID
-                    cmdInsert.Parameters.Add(":userid", OracleDbType.Varchar2).Value = UserID; // Manually entered USER_ID
-                    cmdInsert.Parameters.Add(":uname", OracleDbType.Varchar2).Value = UserName;
-                    cmdInsert.Parameters.Add(":pwd", OracleDbType.Varchar2).Value = Password;
-                    cmdInsert.Parameters.Add(":district", OracleDbType.Varchar2).Value = DistrictID;
-
-                    cmdInsert.ExecuteNonQuery();
-                }
-            }
-
-            TempData["Message"] = "User created successfully!";
-            return RedirectToAction("Dashboard");
+            newId = Convert.ToInt32(cmdMax.ExecuteScalar());
         }
 
-        public IActionResult Logout()
+        // Insert new user with manually entered USER_ID
+        using (OracleCommand cmdInsert = new OracleCommand("INSERTicat INTO NRSP.PHSIP_ASSESSMENT (ID, USER_ID, USERNAME, PASSWORD, DISTRICT_ID) VALUES (:id, :userid, :uname, :pwd, :district)", con))
         {
-            HttpContext.Session.Clear();
-            return RedirectToAction("Login", "Main");
+            cmdInsert.Parameters.Add(":id", OracleDbType.Varchar2).Value = newId.ToString(); // Auto-incremented ID
+            cmdInsert.Parameters.Add(":userid", OracleDbType.Varchar2).Value = UserID; // Manually entered USER_ID
+            cmdInsert.Parameters.Add(":uname", OracleDbType.Varchar2).Value = UserName;
+            cmdInsert.Parameters.Add(":pwd", OracleDbType.Varchar2).Value = Password;
+            cmdInsert.Parameters.Add(":district", OracleDbType.Varchar2).Value = DistrictID;
+
+            try
+            {
+                cmdInsert.ExecuteNonQuery();
+                _logger.LogInformation($"Successfully inserted user with ID {newId}");
+                TempData["Message"] = "User created successfully!";
+            }
+            catch (OracleException ex) when (ex.Number == 904)
+            {
+                _logger.LogError($"Invalid column name in UpdateUser for ID {newId}: {ex.Message}");
+                TempData["Message"] = "Error creating user: Invalid column name.";
+                return RedirectToAction("Dashboard");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error inserting user with ID {newId}: {ex.Message}");
+                TempData["Message"] = $"Error creating user: {ex.Message}";
+                return RedirectToAction("Dashboard");
+            }
         }
+    }
+
+    return RedirectToAction("Dashboard");
+}
+
 
 
 
@@ -356,7 +372,194 @@ namespace SRSO_PPRP.Controllers
             return RedirectToAction("Dashboard");
         }
 
-       
+        private void InsertUserAccount(OracleConnection conn, string[] values, int rowNumber)
+        {
+            using (var insertCmd = new OracleCommand(@"
+BEGIN
+    INSERT INTO NRSP.PHSIP_ASSESSMENT (ID, PWD, USER_NAME, USER_ID, DISTRICT_ID) 
+    VALUES (:id, :pwd, :userName, :userId, :districtId);
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        NULL; -- Ignore duplicate record error
+END;", conn))
+            {
+                insertCmd.Parameters.Add(":id", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[0]) ? DBNull.Value : values[0];
+                insertCmd.Parameters.Add(":pwd", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[1]) ? DBNull.Value : values[1];
+                insertCmd.Parameters.Add(":userName", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[2]) ? DBNull.Value : values[2];
+                insertCmd.Parameters.Add(":userId", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[3]) ? DBNull.Value : values[3];
+                insertCmd.Parameters.Add(":districtId", OracleDbType.Varchar2).Value = string.IsNullOrEmpty(values[4]) ? DBNull.Value : values[4];
+
+                try
+                {
+                    insertCmd.ExecuteNonQuery();
+                    _logger.LogInformation($"Successfully inserted row {rowNumber} with ID '{values[0]}' into NRSP.PHSIP_ASSESSMENT");
+                }
+                catch (OracleException ex) when (ex.Number == 904) // ORA-00904: invalid identifier
+                {
+                    _logger.LogError($"Invalid column name in row {rowNumber} with ID '{values[0]}': {ex.Message}");
+                    throw;
+                }
+                catch (OracleException ex) when (ex.Number == 1) // ORA-00001: unique constraint violated
+                {
+                    _logger.LogWarning($"Duplicate USER_NAME '{values[2]}' or ID '{values[0]}' in row {rowNumber}, skipping.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Error inserting row {rowNumber} with ID '{values[0]}': {ex.Message}");
+                    throw;
+                }
+            }
+        }
+
+
+
+
+        [HttpPost]
+        public IActionResult UserDataUpload(IFormFile file)
+        {
+
+            if (string.IsNullOrEmpty(HttpContext.Session.GetString("User")))
+            {
+                return RedirectToAction("Login", "Main");
+            }
+            if (file == null || file.Length == 0)
+            {
+                TempData["Message"] = "Please select a valid CSV or Excel file.";
+                return RedirectToAction("Dashboard");
+            }
+
+            string uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+            if (!Directory.Exists(uploadPath))
+            {
+                Directory.CreateDirectory(uploadPath);
+            }
+
+            string filePath = Path.Combine(uploadPath, file.FileName);
+
+            try
+            {
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    file.CopyTo(stream);
+                }
+
+                string fileExtension = Path.GetExtension(file.FileName).ToLower();
+
+
+                if (fileExtension == ".xlsx")
+                {
+                    ProcessExcelFile(filePath);
+                }
+                else
+                {
+                    TempData["Message"] = "Invalid file format. Please upload a CSV or XLSX file.";
+                    return RedirectToAction("Dashboard");
+                }
+
+                TempData["Message"] = "File uploaded and data inserted successfully!";
+            }
+            catch (Exception ex)
+            {
+                TempData["Message"] = "Error uploading file: " + ex.Message;
+            }
+
+            return RedirectToAction("Dashboard");
+        }
+
+
+        private void ProcessExcelFile(string filePath)
+        {
+            System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
+            using (var stream = System.IO.File.Open(filePath, FileMode.Open, FileAccess.Read))
+            {
+                using (var reader = ExcelReaderFactory.CreateReader(stream))
+                {
+                    string connectionString = _configuration.GetConnectionString("DefaultConnection");
+
+                    using (var conn = new OracleConnection(connectionString))
+                    {
+                        conn.Open();
+
+                        // Delete existing records from the USER_ACCOUNTS table before inserting new ones
+                        using (var deleteCmd = new OracleCommand("DELETE FROM NRSP.PHSIP_ASSESSMENT", conn))
+                        {
+                            deleteCmd.ExecuteNonQuery();
+                            _logger.LogInformation("Deleted existing records from NRSP.PHSIP_ASSESSMENT.");
+                        }
+
+                        // Read all rows into a list
+                        var rows = new List<(string[] Values, int RowNumber)>();
+                        bool isHeader = true;
+                        int rowNumber = 0;
+
+                        while (reader.Read())
+                        {
+                            rowNumber++;
+                            if (isHeader)
+                            {
+                                isHeader = false;
+                                continue;
+                            }
+
+                            string[] values = new string[5];
+                            for (int i = 0; i < 5; i++)
+                            {
+                                values[i] = reader.GetValue(i)?.ToString()?.Trim() ?? "";
+                            }
+
+                            // Validate ID (allow any non-empty string since ID is VARCHAR2)
+                            if (string.IsNullOrWhiteSpace(values[0]))
+                            {
+                                _logger.LogWarning($"Skipping row {rowNumber}: Invalid or empty ID '{values[0]}'");
+                                continue;
+                            }
+
+                            // Validate USER_NAME (since it has a unique constraint)
+                            if (string.IsNullOrWhiteSpace(values[2]))
+                            {
+                                _logger.LogWarning($"Skipping row {rowNumber}: Invalid or empty USER_NAME '{values[2]}'");
+                                continue;
+                            }
+
+                            rows.Add((values, rowNumber));
+                        }
+
+                        // Sort the rows by ID in ascending order
+                        var sortedRows = rows.OrderBy(row => row.Values[0]).ToList();
+
+                        // Insert all rows into the database
+                        foreach (var (values, rowNum) in sortedRows)
+                        {
+                            try
+                            {
+                                InsertUserAccount(conn, values, rowNum);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError($"Error processing row {rowNum} with ID '{values[0]}': {ex.Message}");
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Delete temp file
+            if (System.IO.File.Exists(filePath))
+            {
+                System.IO.File.Delete(filePath);
+            }
+        }
+
+
+
+
+
+
+
+
+
+
 
         private void UploadExcelToDatabase(string filePath)
         {
@@ -448,150 +651,9 @@ namespace SRSO_PPRP.Controllers
 
 
 
-        [HttpPost]
-        public IActionResult UserDataUpload(IFormFile file)
-        {
-
-            if (string.IsNullOrEmpty(HttpContext.Session.GetString("User")))
-            {
-                return RedirectToAction("Login", "Main");
-            }
-            if (file == null || file.Length == 0)
-            {
-                TempData["Message"] = "Please select a valid CSV or Excel file.";
-                return RedirectToAction("Dashboard");
-            }
-
-            string uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-            if (!Directory.Exists(uploadPath))
-            {
-                Directory.CreateDirectory(uploadPath);
-            }
-
-            string filePath = Path.Combine(uploadPath, file.FileName);
-
-            try
-            {
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    file.CopyTo(stream);
-                }
-
-                string fileExtension = Path.GetExtension(file.FileName).ToLower();
-
-               
-                 if (fileExtension == ".xlsx")
-                {
-                    ProcessExcelFile(filePath);
-                }
-                else
-                {
-                    TempData["Message"] = "Invalid file format. Please upload a CSV or XLSX file.";
-                    return RedirectToAction("Dashboard");
-                }
-
-                TempData["Message"] = "File uploaded and data inserted successfully!";
-            }
-            catch (Exception ex)
-            {
-                TempData["Message"] = "Error uploading file: " + ex.Message;
-            }
-
-            return RedirectToAction("Dashboard");
-        }
-
        
-        private void ProcessExcelFile(string filePath)
-        {
 
-            
-            System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
-
-            using (var stream = System.IO.File.Open(filePath, FileMode.Open, FileAccess.Read))
-            {
-                using (var reader = ExcelReaderFactory.CreateReader(stream))
-                {
-                    string connectionString = _configuration.GetConnectionString("DefaultConnection");
-
-                    using (var conn = new OracleConnection(connectionString))
-                    {
-                        conn.Open();
-
-                        // Delete existing records from the USER_ACCOUNTS table before inserting new ones
-                        using (var deleteCmd = new OracleCommand("DELETE FROM NRSP.PHSIP_ASSESSMENT", conn))
-                        {
-                            deleteCmd.ExecuteNonQuery();
-                            Console.WriteLine("Deleted existing records from USER_ACCOUNTS.");
-                        }
-
-                        // Read all rows into a list
-                        var rows = new List<string[]>();
-                        bool isHeader = true;
-
-                        while (reader.Read())
-                        {
-                            if (isHeader)
-                            {
-                                isHeader = false;
-                                continue;
-                            }
-
-                            string[] values = new string[5];
-
-                            for (int i = 0; i < 5; i++)
-                            {
-                                values[i] = reader.GetValue(i)?.ToString() ?? "";
-                            }
-
-                            rows.Add(values);
-                        }
-
-                        // Sort the rows by ID in ascending order
-                        var sortedRows = rows.OrderBy(row => Convert.ToInt64(row[0], CultureInfo.InvariantCulture)).ToList();
-
-                        // Insert all rows into the database
-                        foreach (var values in sortedRows)
-                        {
-                            // Insert the row into the database, no duplicate checking
-                            InsertUserAccount(conn, values);
-                        }
-                    }
-                }
-            }
-
-            System.IO.File.Delete(filePath);
-        }
-
-
-
-        private void InsertUserAccount(OracleConnection conn, string[] values)
-        {
-            using (var insertCmd = new OracleCommand(@"
-BEGIN
-    INSERT INTO NRSP.PHSIP_ASSESSMENT (ID, PWD, USER_NAME, USER_ID, DISTRICT_ID) 
-    VALUES (:id, :password, :username, :userID, :districtID);
-EXCEPTION
-    WHEN DUP_VAL_ON_INDEX THEN
-        NULL; -- Ignore duplicate record error
-END;", conn))
-            {
-                insertCmd.Parameters.Add(":id", OracleDbType.Varchar2).Value = values[0];           // ID
-                insertCmd.Parameters.Add(":password", OracleDbType.Varchar2).Value = values[1];     // PWD
-                insertCmd.Parameters.Add(":username", OracleDbType.Varchar2).Value = values[2];     // USER_NAME
-                insertCmd.Parameters.Add(":userID", OracleDbType.Varchar2).Value = values[3];       // USER_ID
-                insertCmd.Parameters.Add(":districtID", OracleDbType.Varchar2).Value = values[4];    // DISTRICT_ID
-
-                try
-                {
-                    insertCmd.ExecuteNonQuery();
-                }
-                catch (Exception ex)
-                {
-                    // Log any other exceptions if needed
-                    Console.WriteLine($"Error inserting ID {values[0]}: {ex.Message}");
-                }
-            }
-        }
+      
 
 
 
