@@ -1099,43 +1099,43 @@ namespace SRSO_PPRP.Controllers
 
                             string refrigeratorLabel = pscScore.REFRIGERATOR_SCORE switch
                             {
-                                "1" => "Yes",
+                                "3" => "Yes",
                                 "0" => "No",
                                 _ => "N/A"
                             };
 
-                            string freezerLabel = pscScore.Freezer_Score switch
+                            string freezerLabel = pscScore.REFRIGERATOR_SCORE switch
                             {
-                                "1" => "Yes",
+                                "3" => "Yes",
                                 "0" => "No",
                                 _ => "N/A"
                             };
 
-                            string washingMachineLabel = pscScore.WashingMachine_Score switch
+                            string washingMachineLabel = pscScore.REFRIGERATOR_SCORE switch
                             {
-                                "1" => "Yes",
+                                "3" => "Yes",
                                 "0" => "No",
                                 _ => "N/A"
                             };
 
-                            string geyserLabel = pscScore.Gyser_Score switch
+                            string geyserLabel = pscScore.AIRCONDITIONER_SCORE switch
                             {
-                                "1" => "Yes",
+                                "9" => "Yes",
                                 "0" => "No",
                                 _ => "N/A"
                             };
 
 
-                            string heaterLabel = pscScore.Heater_Score switch
+                            string heaterLabel = pscScore.AIRCONDITIONER_SCORE switch
                             {
-                                "1" => "Yes",
+                                "9" => "Yes",
                                 "0" => "No",
                                 _ => "N/A"
                             };
 
-                            string airCoolerLabel = pscScore.AirCooler_Score switch
+                            string airCoolerLabel = pscScore.AIRCONDITIONER_SCORE switch
                             {
-                                "1" => "Yes",
+                                "9" => "Yes",
                                 "0" => "No",
                                 _ => "N/A"
                             };
@@ -1146,30 +1146,30 @@ namespace SRSO_PPRP.Controllers
 
                             string airConditionerLabel = pscScore.AIRCONDITIONER_SCORE switch
                             {
-                                "1" => "Yes",
+                                "9" => "Yes",
                                 "0" => "No",
                                 _ => "N/A"
                             };
 
                             string cookingStoveLabel = pscScore.COOKING_SCORE switch
                             {
-                                "1" => "Yes",
+                                "5" => "Yes",
                                 "0" => "No",
                                 _ => "N/A"
                             };
 
 
-                            string cookingRangeLabel = pscScore.COOKINGRange_Score switch
+                            string cookingRangeLabel = pscScore.COOKING_SCORE switch
                             {
-                                "1" => "Yes",
+                                "5" => "Yes",
                                 "0" => "No",
                                 _ => "N/A"
                             };
 
 
-                            string microwaveOvenLabel = pscScore.Microwave_Score switch
+                            string microwaveOvenLabel = pscScore.COOKING_SCORE switch
                             {
-                                "1" => "Yes",
+                                "5" => "Yes",
                                 "0" => "No",
                                 _ => "N/A"
                             };
