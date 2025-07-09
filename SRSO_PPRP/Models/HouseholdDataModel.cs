@@ -99,6 +99,39 @@ namespace SRSO_PPRP.Models
         public string VILLAGE_NAME { get; set; }
         public string SCHOOL_GOING_SCORE { get; set; }
 
+
+
+
+
+
+
+
+
+
+
+
+        
+        public string TOILET_TYPE { get; set; }
+        public string ROOMS { get; set; }
+        public string REFRIGERATOR { get; set; }
+        public string FREEZER { get; set; }
+        public string WASHING_MACHINE { get; set; }
+        public string GEYSER { get; set; }
+        public string HEATER { get; set; }
+        public string AIR_COOLER { get; set; }
+        public string AIR_CONDITIONER { get; set; }
+        public string COOKING_STOVE { get; set; }
+        public string COOKING_RANGE { get; set; }
+        public string MICROWAVE_OVEN { get; set; }
+        public string MOTORCYCLE { get; set; }
+        public string TRACTOR { get; set; }
+        public string CAR { get; set; }
+   
+        public string AREA_UNIT { get; set; }
+        public string AREA_UNIT_PSC { get; set; }
+        public string LAND_TYPE { get; set; }
+        public string LAND_AREA_VALUE { get; set; }
+
     }
     public class PSCReportFilterViewModel
     {
